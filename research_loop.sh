@@ -59,9 +59,9 @@ while [ $(date +%s) -lt $END_TIME ]; do
 
 
 
-    echo "Sleeping for 60 seconds before next iteration..."
+    echo "Sleeping for 120 seconds before next iteration..."
 
-    sleep 60
+    sleep 120
 
 done
 
