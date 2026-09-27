@@ -63,3 +63,14 @@ The engine wasn't **summing** multi-asset transaction costs (they were applied p
 
 Next iteration candidates (from the article's remaining themes): survivorship-bias-aware universes, Kelly-style position sizing, and an execution-system layer with slippage modeling. Want me to run iteration #2?
 [33m[agents/agent-command][39m [36m[agent] run e404974f-5fdf-4974-b3ec-9290b86d3458 ended with stopReason=stop[39m
+[main 6a246af] Auto-research iteration #1 [2026-09-27 09:31]
+ 12 files changed, 400 insertions(+), 4 deletions(-)
+ create mode 100644 iter1_cost_sensitivity.csv
+ create mode 100644 iter1_momentum_oos.png
+ create mode 100644 iter1_momentum_sweep.csv
+ create mode 100644 iter1_sma_heatmap.png
+ create mode 100644 iter1_sma_sweep.csv
+ create mode 100644 iter1_spike_check.csv
+ create mode 100644 research_loop.log
+ create mode 100755 research_loop.sh
+ create mode 100644 run_iteration1.py
