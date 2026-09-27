@@ -26,10 +26,11 @@ def backtest(position, returns, cost_bps=10, lag=1):
     Returns daily strategy return series net of turnover costs."""
     pos = position.shift(lag).fillna(0.0)
     turnover = pos.diff().abs()
-    turnover.iloc[0] = pos.iloc[0].abs()
     if isinstance(turnover, pd.DataFrame):
+        turnover.iloc[0] = pos.iloc[0].abs()
         cost = turnover.sum(axis=1) * cost_bps / 1e4
     else:
+        turnover.iloc[0] = abs(pos.iloc[0])
         cost = turnover * cost_bps / 1e4
     strat = pos * returns
     if isinstance(strat, pd.DataFrame):
