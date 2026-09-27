@@ -1,0 +1,9 @@
+,SingleSplit Sharpe,WalkForward Sharpe,Difference
+Buy&Hold,0.0,0.0,0.0
+SMA200,1.07,0.99,-0.08
+60/40,0.03,-0.89,-0.91
+GEM,0.49,0.65,0.16
+XSec Mom,0.99,1.1,0.1
+TSMOM+RP,1.19,0.67,-0.51
+Vol Target,0.94,0.82,-0.12
+Regime-Aware,1.1,1.01,-0.1
