@@ -1,0 +1,6 @@
+,Sharpe,AnnRet%,MaxDD%
+Base,0.95,10.85,-21.55
+Delayed,0.79,9.19,-23.83
+Missing Data,0.95,10.82,-21.81
+Extreme Moves,0.92,10.61,-20.95
+Corr Breakdown,1.02,11.43,-21.55

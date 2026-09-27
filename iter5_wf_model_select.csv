@@ -1,0 +1,3 @@
+Strategy,Sharpe,AnnRet%,MaxDD%
+Best Single (XSec Mom),0.83,14.66,-31.12
+Walk-Forward Model Select,0.64,7.22,-25.19
