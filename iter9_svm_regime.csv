@@ -1,0 +1,4 @@
+,Accuracy,Strategy Sharpe,Strategy AnnRet%,Strategy MaxDD%
+Linear SVC,0.614,0.48,2.44,-11.12
+RBF SVC,0.609,0.51,2.21,-9.25
+RBF SVC(C=10),0.622,0.47,2.1,-8.05

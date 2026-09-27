@@ -1,0 +1,4 @@
+,MSE,Correlation,Dir Acc,Strategy Sharpe,Strategy AnnRet%,Strategy MaxDD%
+Linear SVR,10902.48,0.239,0.536,0.89,9.68,-17.84
+RBF SVR,11211.83,0.108,0.478,0.9,9.82,-21.14
+RBF SVR(C=10),14714.23,0.058,0.442,0.9,9.77,-20.35
