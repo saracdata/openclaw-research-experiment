@@ -1,0 +1,11 @@
+Strategy,F1,F2,F3,F4
+SMA200,1.16,0.71,0.67,1.33
+GEM,0.78,0.46,-0.02,0.87
+XSec Mom,0.77,0.6,0.81,1.18
+60/40,-1.09,-1.64,0.12,-0.16
+All Weather,-1.82,-1.83,-0.23,-0.63
+Permanent Portfolio,-1.45,-1.56,-0.37,-0.78
+Golden Butterfly,-1.74,-1.82,0.08,-0.75
+Risk Parity Static,-0.05,0.77,0.53,1.03
+Global Market Portfolio,-0.73,-1.63,0.31,-0.04
+ML-Regime,0.0,0.0,-0.16,0.62

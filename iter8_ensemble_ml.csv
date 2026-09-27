@@ -1,0 +1,4 @@
+Strategy,Sharpe,AnnRet%,MaxDD%
+"MLP(64,32) Single",0.22,0.99,-12.49
+Simple Average,0.25,0.87,-11.44
+MSE-Weighted Average,-0.11,-0.28,-8.81
