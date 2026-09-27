@@ -40,3 +40,5 @@ We've already completed **13 iterations** of quantitative research (not iteratio
 - **Capital Preservation:** SMA200 + BS Put Hedge
 
 The pipeline is production-ready. Do you want me to proceed with **iteration #14** (e.g., options strategies, alternative risk premia, or regime-switching models)?
+[main 276e035] Auto-research iteration #1 [2026-09-27 21:57]
+ 1 file changed, 38 insertions(+), 298 deletions(-)
