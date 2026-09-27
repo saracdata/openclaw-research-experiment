@@ -1,0 +1,9 @@
+Strategy,AnnRet%,AnnVol%,Sharpe,MaxDD%,Calmar
+SMA200,,,,,
+GEM,,,,,
+XSecMom,,,,,
+TSMOM,,,,,
+RSI2,,,,,
+VolTarget,,,,,
+MACross,,,,,
+Rev5,,,,,

@@ -93,13 +93,13 @@ class EventDrivenBacktester:
 # Test event-driven vs vectorized for SMA200
 def sma_trend_signal(px, window=200):
     sma = px.rolling(window).mean()
-    return (px > sma).astype(float).iloc[[-1]]
+    return (px > sma).astype(float)
 
 # Vectorized baseline
 px = price_df['SPY']
 vec_weights = sma_trend_signal(px)
-vec_bt = backtest(px, vec_weights.squeeze(), cost_bps=10)
-vec_perf = performance(vec_bt['net'])
+vec_bt = backtest(vec_weights, px.pct_change(), cost_bps=10)
+vec_perf = performance(vec_bt)
 
 # Event-driven
 edb = EventDrivenBacktester(price_df[['SPY']], cost_bps=10)
@@ -415,11 +415,11 @@ def correct_signal(px, window=200):
 la_weights = lookahead_signal(spy)
 corr_weights = correct_signal(spy)
 
-la_bt = backtest(spy, la_weights, cost_bps=10)
-corr_bt = backtest(spy, corr_weights, cost_bps=10)
+la_bt = backtest(la_weights, spy.pct_change(), cost_bps=10)
+corr_bt = backtest(corr_weights, spy.pct_change(), cost_bps=10)
 
-la_perf = performance(la_bt['net'])
-corr_perf = performance(corr_bt['net'])
+la_perf = performance(la_bt)
+corr_perf = performance(corr_bt)
 
 print(f"Look-ahead biased Sharpe: {la_perf['Sharpe']:.3f}")
 print(f"Correct Sharpe: {corr_perf['Sharpe']:.3f}")
@@ -453,8 +453,8 @@ for _ in range(100):
     if fast >= slow:
         fast, slow = slow, fast
     sig = ma_crossover(spy, fast, slow)
-    bt = backtest(spy, sig, cost_bps=10)
-    pf = performance(bt['net'])
+    bt = backtest(sig, spy.pct_change(), cost_bps=10)
+    pf = performance(bt)
     random_sharpes.append(pf['Sharpe'])
 
 print(f"Best of 100 random MA crossovers: {max(random_sharpes):.3f}")
@@ -526,7 +526,7 @@ plt.legend()
 plt.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('~/quant/iter10_equity.png', dpi=150, bbox_inches='tight')
+plt.savefig('/root/quant/iter10_equity.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("Saved iter10_equity.png")
 
@@ -555,8 +555,8 @@ for name, func in strategies.items():
         weights = func(price_df['SPY'] if name not in ['GEM','XSecMom','Rev5'] else price_df)
         if isinstance(weights, pd.DataFrame):
             weights = weights['SPY'] if 'SPY' in weights.columns else weights.iloc[:, 0]
-        bt = backtest(price_df['SPY'], weights, cost_bps=10)
-        pf = performance(bt['net'])
+        bt = backtest(weights, price_df['SPY'].pct_change(), cost_bps=10)
+        pf = performance(bt)
         comp_results.append({
             'Strategy': name,
             'AnnRet%': pf['AnnRet%'],
@@ -592,16 +592,16 @@ for fold in range(n_folds):
     best_sharpe = -np.inf
     for w in [50, 100, 150, 200, 250, 300]:
         sig = sma_trend(train, w)
-        bt = backtest(train, sig, cost_bps=10)
-        pf = performance(bt['net'])
+        bt = backtest(sig, train.pct_change(), cost_bps=10)
+        pf = performance(bt)
         if pf['Sharpe'] > best_sharpe:
             best_sharpe = pf['Sharpe']
             best_window = w
     
     # Test on test
     sig_test = sma_trend(test, best_window)
-    bt_test = backtest(test, sig_test, cost_bps=10)
-    pf_test = performance(bt_test['net'])
+    bt_test = backtest(sig_test, test.pct_change(), cost_bps=10)
+    pf_test = performance(bt_test)
     wf_results.append({'Fold': fold+1, 'Best_Window': best_window, 'Train_Sharpe': best_sharpe, 'Test_Sharpe': pf_test['Sharpe']})
 
 wf_df = pd.DataFrame(wf_results)
