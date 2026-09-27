@@ -1,0 +1,4 @@
+Strategy,Sharpe,AnnRet%,MaxDD%,Calmar
+News_Sentiment,-0.56,-3.08,-37.98,-0.08
+SMA200,0.95,10.74,-21.55,0.5
+SMA200+News,0.58,3.57,-14.64,0.24
