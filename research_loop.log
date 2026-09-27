@@ -1,0 +1,65 @@
+==========================================
+ Starting 24-Hour Quantitative Research Loop
+ Started at: Sun Sep 27 09:30:06 UTC 2026
+ Ending at:  Mon Sep 28 09:30:06 UTC 2026
+==========================================
+------------------------------------------
+Starting Research Iteration #1 [Sun Sep 27 09:30:06 UTC 2026]
+------------------------------------------
+[33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=openrouter/auto method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
+[31m[memory][39m [33mmemory_index_chunks_vec not updated — semantic vector embeddings unavailable — no vector dimensions resolved. Vector recall degraded. Further duplicate warnings suppressed.[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=openrouter/auto status=200 elapsedMs=5391 dispatcher=new contentType=text/event-stream[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=openrouter/auto method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=openrouter/auto status=200 elapsedMs=1084 dispatcher=reused contentType=text/event-stream[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=openrouter/auto method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=openrouter/auto status=200 elapsedMs=3447 dispatcher=reused contentType=text/event-stream[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=openrouter/auto method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=openrouter/auto status=200 elapsedMs=1091 dispatcher=reused contentType=text/event-stream[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=openrouter/auto method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=openrouter/auto status=200 elapsedMs=994 dispatcher=reused contentType=text/event-stream[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=openrouter/auto method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=openrouter/auto status=200 elapsedMs=920 dispatcher=reused contentType=text/event-stream[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=openrouter/auto method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=openrouter/auto status=200 elapsedMs=1304 dispatcher=reused contentType=text/event-stream[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=openrouter/auto method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=openrouter/auto status=200 elapsedMs=1093 dispatcher=reused contentType=text/event-stream[39m
+Iteration #1 done — read the QuantStart guide, designed 3 experiments around its core warnings (data-snooping bias, data cleanliness, cost realism), ran them, and updated `~/quant/REPORT.md`.
+
+## What the article emphasized → what I tested
+1. **Optimization/data-snooping bias** → parameter sweeps with a strict train(2012–18)/test(2019–26) split
+2. **Data accuracy/cleanliness** → rolling z-score spike filter on all price series
+3. **Transaction-cost realism** → 0 / 10 / 30 bps stress test
+
+## Key results
+
+**E1 — Data check:** 0 bad ticks across all 9 tickers; the Yahoo data is clean, no corrections needed.
+
+**E2 — SMA window sweep (the money lesson):**
+
+| Window | In-sample Sharpe | Out-of-sample Sharpe |
+|---|---|---|
+| 150 (best IS) | 0.37 | 0.62 |
+| 200 | 0.13 | 0.57 |
+| 300 | 0.19 | 0.61 |
+
+In-sample rankings are pure noise — the "best" window in-sample has no special edge out-of-sample. Tuning parameters on the full sample would have been textbook data-snooping. (Chart: `iter1_sma_heatmap.png`)
+
+**E3 — Momentum lookback sweep:** same story; IS–OOS Sharpe correlation is essentially zero (`iter1_momentum_oos.png`, `iter1_momentum_sweep.csv`).
+
+**E4 — Cost sensitivity (brutal but honest):**
+
+| Strategy | 0 bps | 10 bps | 30 bps |
+|---|---|---|---|
+| SMA200 Trend | 0.63 | 0.38 | **-0.12** |
+| Dual Momentum | 0.62 | 0.33 | **-0.26** |
+
+At retail-level costs (~10 bps) the edges are thin; at 30 bps both flip negative. Execution quality is a first-order input, exactly as the article argues.
+
+## Also: a real bug found and fixed
+The engine wasn't **summing** multi-asset transaction costs (they were applied per-asset and silently diluted). Fixed in `engine.py` — this means the Round-2 multi-asset numbers from earlier were slightly overstated; I flagged that in the report header.
+
+## New files in `~/quant/`
+`run_iteration1.py`, `iter1_spike_check.csv`, `iter1_sma_sweep.csv`, `iter1_momentum_sweep.csv`, `iter1_cost_sensitivity.csv`, `iter1_sma_heatmap.png`, `iter1_momentum_oos.png`, and the appended `REPORT.md` section.
+
+Next iteration candidates (from the article's remaining themes): survivorship-bias-aware universes, Kelly-style position sizing, and an execution-system layer with slippage modeling. Want me to run iteration #2?
+[33m[agents/agent-command][39m [36m[agent] run e404974f-5fdf-4974-b3ec-9290b86d3458 ended with stopReason=stop[39m

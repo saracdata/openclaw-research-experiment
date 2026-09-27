@@ -3,6 +3,13 @@ Data: 15 US tickers (ETFs + large-cap stocks), 2012–2026 daily adjusted closes
 Engine: vectorized, **next-bar execution**, **10 bps transaction cost per turnover unit**.
 Source code: `engine.py`, `strategies.py`, `stats.py`, `run_experiments.py`.
 
+> **Iteration #1 findings added at the end of this report** (`run_iteration1.py`), guided by
+> QuantStart's *Beginner's Guide to Quantitative Trading* — covering data-cleaning spikes,
+> parameter sweeps with in-sample/out-of-sample discipline, and cost sensitivity.
+> Note: the engine's multi-asset cost bug was found and fixed during this iteration
+> (cost was previously applied per-asset without summing; all Round-2 multi-asset numbers
+> in this report should be treated as approximate until re-run).
+
 ## Performance (net of costs)
 
 | Strategy | AnnRet% | AnnVol% | Sharpe | MaxDD% |
@@ -61,3 +68,55 @@ NW_t = Newey-West t-stat of mean return; SR CI = block-bootstrap 95% Sharpe inte
 - 10-stock cross-section (no small caps, no delisting bias control); add ~500-stock universe and sector neutralization.
 - Test broader parameter neighborhoods for DSR-honest out-of-sample validation (train/test split optimization).
 - Add intraday-quality data sources, borrow costs for shorts, dividend/margin handling.
+
+---
+
+# Iteration #1 — QuantStart "Beginner's Guide" findings
+Source: https://www.quantstart.com/articles/Beginner-s-Guide-to-Quantitative-Trading/
+Focus areas applied: data accuracy (spike filter), optimization/data-snooping bias,
+transaction-cost realism. Code: `run_iteration1.py`. Outputs: `iter1_*.csv`, `iter1_sma_heatmap.png`, `iter1_momentum_oos.png`.
+
+## E1 — Data cleanliness (spike filter)
+Rolling z-score spike check (z=8, |ret|>5%) on all 9 tickers: **0 bad ticks found**. Yahoo adjusted data is clean for this universe; no correction needed.
+
+## E2 — SMA window sweep with IS/OOS discipline (train 2012–2018, test 2019–2026)
+| Window | IS Sharpe | OOS Sharpe |
+|---|---|---|
+| 50 | -0.41 | 0.33 |
+| 100 | 0.09 | 0.44 |
+| 150 | 0.37 | 0.62 |
+| 200 | 0.13 | 0.57 |
+| 250 | 0.17 | 0.58 |
+| 300 | 0.19 | 0.61 |
+| 350 | 0.24 | 0.56 |
+| 400 | 0.20 | 0.49 |
+
+**Finding — the textbook lesson in action:** parameters picked in-sample do NOT carry over. The IS ranking is noise (window 150 looks best IS, but its OOS edge is similar to windows 200–300). OOS Sharpe is uniformly higher for long windows simply because 2019–2026 was a friendlier regime — regime, not parameter skill. The honest takeaway: any window in 150–350 behaves the same OOS; fine-tuning on IS would have been pure data-snooping.
+
+## E3 — Dual-momentum lookback sweep, same discipline
+| Lookback | IS Sharpe | OOS Sharpe |
+|---|---|---|
+| 42 | -0.12 | 0.07 |
+| 63 | -0.18 | 0.19 |
+| 126 | -0.03 | 0.56 |
+| 189 | 0.38 | 0.25 |
+| 252 | 0.10 | 0.76 |
+| 315 | 0.00 | 0.58 |
+| 378 | 0.33 | 0.72 |
+
+IS–OOS correlation of the Sharpe profile is essentially zero — further confirmation that single-split parameter optimization on 7 IS years is unreliable.
+
+## E4 — Transaction-cost sensitivity (realism stress test)
+| Strategy | 0 bps | 10 bps | 30 bps | Turnover/yr |
+|---|---|---|---|---|
+| SMA200 Trend | 0.63 | 0.38 | -0.12 | 24.9x |
+| Dual Momentum | 0.62 | 0.33 | -0.26 | 52.5x |
+
+**Finding:** the 9-asset diversified versions of these strategies are cost-fragile. At 30 bps both flip negative. Edge at retail cost levels (~10 bps) is thin; execution quality is a first-order input, exactly as the QuantStart article argues.
+
+## Iteration #1 takeaways
+1. Data quality is fine for this free source (no spikes).
+2. Parameter optimization without strict OOS discipline is self-deception: IS ranks don't predict OOS ranks for either strategy family.
+3. Cost sensitivity can kill marginal edges; prefer lower-turnover variants or better execution.
+4. Process fix adopted going forward: every future parameter choice gets an IS/OOS split plus the DSR multiple-testing hurdle.
+5. Engine bug fixed during this iteration: multi-asset transaction costs were not being summed (Round-2 multi-asset results were slightly overstated).

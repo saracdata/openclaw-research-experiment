@@ -1,0 +1,7 @@
+Strategy,cost_bps,Sharpe,AnnRet%,turnover/yr
+SMA200 Trend,0,0.63,6.28,24.9
+SMA200 Trend,10,0.38,3.78,24.9
+SMA200 Trend,30,-0.12,-1.21,24.9
+Dual Momentum,0,0.62,11.11,52.5
+Dual Momentum,10,0.33,5.86,52.5
+Dual Momentum,30,-0.26,-4.63,52.5

@@ -25,10 +25,16 @@ def backtest(position, returns, cost_bps=10, lag=1):
     """position: target weight series (may be +/-). Executed next bar after signal.
     Returns daily strategy return series net of turnover costs."""
     pos = position.shift(lag).fillna(0.0)
-    turnover = pos.diff().abs().fillna(pos.abs().iloc[0])
-    cost = turnover * cost_bps / 1e4
-    strat = pos * returns - cost
-    return strat
+    turnover = pos.diff().abs()
+    turnover.iloc[0] = pos.iloc[0].abs()
+    if isinstance(turnover, pd.DataFrame):
+        cost = turnover.sum(axis=1) * cost_bps / 1e4
+    else:
+        cost = turnover * cost_bps / 1e4
+    strat = pos * returns
+    if isinstance(strat, pd.DataFrame):
+        strat = strat.sum(axis=1)
+    return strat - cost
 
 
 def perf(strat_ret, label=''):
