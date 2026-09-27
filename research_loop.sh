@@ -39,19 +39,17 @@ while [ $(date +%s) -lt $END_TIME ]; do
 
 
 
-    PROMPT="Perform iteration #$ITERATION of quantitative research on https://www.quantstart.com/articles/Beginners-Guide-to-Quantitative-Trading/. Read the concepts, design new backtesting experiments or strategy parameters in python, execute the scripts, write all generated csv/png/md outputs to the quant folder, and update REPORT.md with new findings."
+    PROMPT="Perform iteration #$ITERATION of quantitative research on https://www.quantstart.com/articles/Beginners-Guide-to-Quantitative-Trading/. Read the concepts, design new backtesting experiments or strategy parameters in python, execute the scripts, write all generated csv/png/md outputs to the quant folder, and update REPORT.md with new findings. And visit https://www.quantstart.com/articles/Beginners-Guide-to-Quantitative-Trading/ look at all the https://www.quantstart.com/articles/ for ideas to test and validate too"
 
 
-
-    openclaw agent --local --agent main --message "$PROMPT"
-
+    openclaw agent --local --agent main --model 'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free' --message "$PROMPT"
 
 
     git add .
 
     git commit -m "Auto-research iteration #$ITERATION [$(date +'%Y-%m-%d %H:%M')]"
 
-    git push origin main || echo "Git push failed, retrying on next iteration..."
+    git push || echo "Git push failed, retrying on next iteration..."
 
 
 
