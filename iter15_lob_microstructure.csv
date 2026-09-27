@@ -1,0 +1,5 @@
+metric,value
+base_sharpe,0.5662372467435551
+lob_sharpe,-0.6744425615048795
+avg_lob_cost_bps,9.213049189690324
+max_lob_cost_bps,57.99712588827228
