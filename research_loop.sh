@@ -44,6 +44,7 @@ while [ $(date +%s) -lt $END_TIME ]; do
 
     openclaw agent --agent main --model 'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free' --message "$PROMPT"
 
+    git pull	
 
     git add .
 
