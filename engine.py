@@ -46,9 +46,11 @@ def perf(strat_ret, label=''):
     ann_vol = r.std() * np.sqrt(252)
     sh = sharpe(r)
     dd = max_dd(cum)
+    calmar = ann_ret / abs(dd) if dd != 0 else 0
     return {'name': label, 'AnnRet%': round(100 * ann_ret, 2),
             'AnnVol%': round(100 * ann_vol, 2), 'Sharpe': round(sh, 2),
-            'MaxDD%': round(100 * dd, 2), 'days': len(r)}
+            'MaxDD%': round(100 * dd, 2), 'Calmar': round(calmar, 2),
+            'days': len(r)}
 
 
 def drawdown_series(strat_ret):
