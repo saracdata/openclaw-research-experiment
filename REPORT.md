@@ -181,3 +181,90 @@ Dropped bottom 30% of performers after 2019-01-01 to simulate survivorship bias:
 5. **Walk-forward optimization** produces the best risk metrics but lowest absolute returns; it solves a *different* objective (capital preservation) than momentum (wealth growth). Match the method to the investor's preferences.
 
 Next iteration candidates: Alternative data integration, regime detection overlays, multi-period optimization, transaction-cost-aware portfolio construction.
+
+---
+
+# Iteration #3 — QuantStart Advanced Themes II
+Source: QuantStart article archive (regime detection, HRP, factor investing, cost-aware optimization, multi-horizon, stress testing).
+Code: `run_iteration3.py`. Outputs: `iter3_*.csv`, `iter3_*.png`.
+
+## E1. Regime Detection & Regime-Aware Strategies
+Rule-based 3-regime model on SPY (volatility percentile + momentum):
+| Regime | Description | Days | % |
+|---|---|---|---|
+| 0 | Bull (low vol, positive mom) | 845 | 23% |
+| 1 | Crisis (high vol, negative mom) | 811 | 22% |
+| 2 | Choppy (else) | 2012 | 55% |
+
+| Strategy | Sharpe | AnnRet% | MaxDD% | Calmar |
+|---|---|---|---|---|
+| Regime Conservative (cash in crisis) | 0.68 | 4.45 | -10.16 | **0.44** |
+| Regime Tactical (lever in bull, bonds in crisis) | 0.44 | 3.77 | -21.38 | 0.18 |
+
+**Finding:** The conservative regime filter (reduce risk in crisis) **improves Calmar to 0.44** but sacrifices return. The tactical version over-levers in bull and gets whipsawed. Simple rule-based regimes add value for risk management; HMM would be more sophisticated but requires `hmmlearn`.
+
+## E2. Hierarchical Risk Parity (HRP)
+| Strategy | Sharpe | AnnRet% | MaxDD% | Calmar |
+|---|---|---|---|---|
+| HRP (rolling 252d, rebal 21d) | **0.84** | 8.57 | -24.29 | 0.35 |
+
+HRP beats equal-weight risk parity (TSMOM+RP: Sharpe 0.38) by clustering correlated assets and allocating risk more efficiently. **Calmar 0.35 is solid** but drawdown still elevated. HRP is a powerful portfolio construction tool, especially for diversified ETF universes.
+
+## E3. Factor Investing (Momentum, Low Vol, Value, Quality)
+| Factor Portfolio | Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|
+| Momentum | 0.64 | 7.65 | -28.04 |
+| Low Vol | 0.57 | 2.14 | **-12.18** |
+| Value (5y mean rev) | 0.59 | 4.30 | -17.51 |
+| Quality (stability) | 0.57 | 5.12 | -23.65 |
+| **Factor Combo (equal weight)** | **0.74** | 5.00 | -16.49 |
+
+**Finding:** **Low Vol factor has the best drawdown (-12%)** and decent Sharpe. The **equal-weight factor combo (Sharpe 0.74, Calmar 0.30)** diversifies factor-specific crashes. Momentum alone has highest return but worst drawdown. Factor timing remains the unsolved problem.
+
+## E4. Transaction-Cost-Aware Optimization
+| Optimization | Sharpe | AnnRet% | MaxDD% | Calmar |
+|---|---|---|---|---|
+| Cost-Aware (penalize turnover) | **1.81** | 2.29 | **-3.01** | **0.76** |
+| Standard Max-Sharpe (no cost penalty) | 1.81 | 2.27 | -2.97 | 0.76 |
+
+Both produce near-identical results because the optimization naturally finds low-turnover, bond-heavy portfolios when costs are realistic. **Explicit cost penalty didn't add value here** — the standard optimizer already internalizes costs via the rebalancing frequency. The real insight: **frequent re-optimization with costs is a losing game**; the best portfolios are simple and stable.
+
+## E5. Multi-Horizon Signal Blending
+| Signal | Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|
+| Multi-Horizon (21/63/126/252d) | 0.52 | 4.67 | -34.52 |
+| Single Horizon (126d only) | 0.56 | 4.96 | -23.19 |
+
+**Finding:** Multi-horizon blending **didn't improve** over single-horizon; it increased drawdown. The short-term (21d) component adds noise and turnover. **Simpler is better** for momentum signals — consistent with QuantStart's "Simple vs Advanced" article.
+
+## E6. Stochastic Stress Testing
+| Model | Mean Sharpe | Std Sharpe | Min Sharpe | Max Sharpe |
+|---|---|---|---|---|
+| GBM (Geometric Brownian Motion) | 0.43 | 0.29 | -0.05 | 1.06 |
+| OU (Ornstein-Uhlenbeck) | **-4.51** | 0.87 | -6.36 | -2.50 |
+| Jump-Diffusion | 0.46 | 0.29 | -0.20 | 1.18 |
+
+**Finding:** The **OU (mean-reverting) model destroys momentum strategies** (Sharpe -4.5) — if markets truly mean-revert strongly, momentum fails catastrophically. GBM and Jump-Diffusion show modest positive edge (Sharpe ~0.45). **Momentum strategies are highly sensitive to the true data-generating process**; stress testing reveals regime assumptions matter more than parameter tuning.
+
+## Iteration #3 Takeaways
+1. **Regime filters** (simple rule-based) improve risk-adjusted returns by cutting crisis exposure. Conservative > Tactical.
+2. **HRP** is a powerful portfolio construction method for diversified universes — worth using as a risk overlay.
+3. **Factor diversification** (equal-weight combo) beats any single factor on risk-adjusted basis. Low Vol is the defensive standout.
+4. **Cost-aware optimization** ≈ standard optimization when rebalance frequency is low; the penalty matters more at high frequency.
+5. **Multi-horizon blending** adds complexity without benefit for momentum — favor single, well-tested horizons.
+6. **Stress testing** reveals momentum's Achilles heel: strong mean-reversion (OU). If market structure changes, momentum fails. Diversify across strategy types, not just parameters.
+
+---
+
+## Overall Summary (Iterations 1–3)
+
+| Iteration | Theme | Best Strategy by Objective |
+|---|---|---|
+| **1** | Bias discipline, cost realism | **Ensemble Equal** (Sharpe 0.89, Calmar 0.51) |
+| **2** | Kelly, execution, ensembles, WFO | **Walk-Forward Opt** (Sharpe 1.86, Calmar 0.98, DD -2.1%) |
+| **3** | Regimes, HRP, factors, stress | **Cost-Aware Opt / HRP** (Sharpe 0.84–1.81, Calmar 0.35–0.76) |
+
+**Universal truth across all iterations:** There is no single "best" strategy — the objective function determines the answer. For **wealth growth**: XSec Momentum, SMA200+Kelly. For **capital preservation**: Walk-Forward Opt, Cost-Aware Opt. For **balanced**: Ensemble Equal-Weight, Regime-Conservative SMA.
+
+The QuantStart guide's core lesson holds: **simple, robust, diversified, cost-aware strategies with honest out-of-sample validation beat complex overfit ones every time.**
+
