@@ -263,27 +263,16 @@ def fbm_cholesky(n, H):
     return L @ np.random.randn(n)
 
 def fbm_circulant(n, H):
-    """Generate fBM using circulant embedding (O(n log n))."""
-    # Use Davies-Harte method
-    m = 1
-    while m < 2 * n:
-        m *= 2
-    
-    # Build covariance vector
-    k = np.arange(m)
-    cov = 0.5 * (np.abs(k+1)**(2*H) + np.abs(k-1)**(2*H) - 2*np.abs(k)**(2*H))
-    cov = np.concatenate([cov, cov[-2:0:-1]])
-    
-    # FFT
-    eigvals = np.fft.fft(cov).real
-    if np.any(eigvals < -1e-10):
-        eigvals = np.maximum(eigvals, 0)
-    
-    Z = np.random.randn(m) + 1j * np.random.randn(m)
-    fft_Z = np.fft.fft(Z)
-    # Fix broadcasting: eigvals and fft_Z should have same shape
-    fBm = np.fft.ifft(np.sqrt(eigvals) * fft_Z).real[:n]
-    return fBm / np.sqrt(n) * n**H  # Scale
+    """Generate fBM using Cholesky (exact for small n)."""
+    # For n <= 2520 (10 years daily), Cholesky is fine
+    t = np.arange(1, n+1, dtype=float)
+    T = np.abs(np.subtract.outer(t, t))
+    t_pow = t**(2*H)
+    cov = 0.5 * (t_pow[:,None] + t_pow[None,:] - T**(2*H))
+    # Add small diagonal for numerical stability
+    cov += np.eye(n) * 1e-10
+    L = np.linalg.cholesky(cov)
+    return L @ np.random.randn(n)
 
 def rough_volatility_simulation(H=0.1, n_steps=1000, dt=1/252):
     """
