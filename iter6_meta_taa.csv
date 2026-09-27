@@ -1,0 +1,4 @@
+Strategy,Sharpe,AnnRet%,MaxDD%
+Equal Weight,0.76,4.94,-12.73
+Risk Parity,0.26,0.46,-7.82
+HRP,0.84,4.17,-7.75
