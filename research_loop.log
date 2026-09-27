@@ -754,3 +754,10 @@ YouTube
 [33m[agent/embedded][39m [33mtransient same-model retry 1/8 for openrouter/nvidia/nemotron-3-ultra-550b-a55b:free reason=timeout: delayMs=891[39m
 [33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=nvidia/nemotron-3-ultra-550b-a55b:free method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
 [33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=nvidia/nemotron-3-ultra-550b-a55b:free status=200 elapsedMs=1546 dispatcher=reused contentType=text/event-stream[39m
+[33m[agent/embedded][39m [33membedded run agent end: runId=aa2303c7-1cca-4c7a-ae4e-21bdc842c0be isError=true model=nvidia/nemotron-3-ultra-550b-a55b:free provider=openrouter error=LLM request timed out. rawError=Upstream idle timeout exceeded[39m
+[33m[agent/embedded][39m [33mtransient retry window elapsed for openrouter/nvidia/nemotron-3-ultra-550b-a55b:free after 1/8 retries; failing over[39m
+[33m[agent/embedded][39m [33membedded run failover decision: runId=aa2303c7-1cca-4c7a-ae4e-21bdc842c0be stage=assistant decision=surface_error reason=timeout attempt=1 retry=1 rotations=0 from=openrouter/nvidia/nemotron-3-ultra-550b-a55b:free profile=sha256:ac092b59b472 rawError=Upstream idle timeout exceeded[39m
+[31m[diagnostic][39m [31mlane task error: lane=main durationMs=620680 error="LLM request timed out."[39m
+[31m[diagnostic][39m [31mlane task error: lane=session:agent:main:main durationMs=620682 error="LLM request timed out."[39m
+[34m[model-fallback/decision][39m [33mmodel fallback decision: decision=candidate_failed requested=openrouter/nvidia/nemotron-3-ultra-550b-a55b:free candidate=openrouter/nvidia/nemotron-3-ultra-550b-a55b:free reason=timeout next=none detail=Upstream idle timeout exceeded[39m
+LLM request timed out.
