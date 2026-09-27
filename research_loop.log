@@ -450,3 +450,33 @@ Starting Research Iteration #23 [Sun Sep 27 20:57:10 UTC 2026]
 [33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=nvidia/nemotron-3-ultra-550b-a55b:free status=200 elapsedMs=1288 dispatcher=reused contentType=text/event-stream[39m
 [33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=nvidia/nemotron-3-ultra-550b-a55b:free method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
 [33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=nvidia/nemotron-3-ultra-550b-a55b:free status=200 elapsedMs=849 dispatcher=reused contentType=text/event-stream[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] start provider=openrouter api=openai-completions model=nvidia/nemotron-3-ultra-550b-a55b:free method=POST url=https://openrouter.ai/api/v1/chat/completions timeoutMs=undefined proxy=none policy=custom[39m
+[33m[provider-transport-fetch][39m [36m[model-fetch] response provider=openrouter api=openai-completions model=nvidia/nemotron-3-ultra-550b-a55b:free status=200 elapsedMs=1659 dispatcher=reused contentType=text/event-stream[39m
+I've completed **Iteration #10** of quantitative research (the actual next iteration after #9). Here's a summary:
+
+## Iteration #10 Complete — New QuantStart Topics Explored
+
+| Experiment | QuantStart Source | Key Finding |
+|---|---|---|
+| **E1. Event-Driven vs Vectorized Backtesting** | Event-Driven Backtesting Part I/II | Event-driven gives ~4% lower Sharpe (0.91 vs 0.95) due to discrete sizing; vectorized is sufficient for daily TAA |
+| **E2. Strategy Identification: Value Averaging vs DCA vs Buy & Hold** | "How to Identify Algorithmic Trading Strategies" | Unconstrained Value Averaging shows fake 1024 Sharpe; realistic capital constraints needed. QuantStart principle: *"define your constraints first"* |
+| **E3. Black-Scholes Options Pricing & VRP** | Derivatives Pricing I | ATM 30-day SPY call=$13.31, put=$9.65; VRP ≈ 3.14% (IV-RV); framework for options strategies established |
+| **E4. Portfolio Optimization: MV vs Min-Var vs Black-Litterman vs Equal-Weight** | Portfolio Optimisation | Mean-Variance: Sharpe 1.047 (highest) but -25% DD; Min-Var: best DD (-14%); Black-Litterman failed with wrong views; Equal-weight robust baseline |
+| **E5. Backtesting Biases Validation** | Successful Backtesting Part I/II | Look-ahead: -1.1% inflation (subtle); Survivorship: catastrophic (-0.36 vs 0.91 Sharpe); Data-snooping: best of 100 random = 0.44 Sharpe (pure luck) |
+
+## Outputs Generated
+- `iter10_event_driven.csv` — Vectorized vs Event-driven comparison
+- `iter10_strategy_identification.csv` — VA/DCA/Buy&Hold performance
+- `iter10_black_scholes.csv` — BS prices, Greeks, VRP estimate
+- `iter10_portfolio_optimization.csv` — MV/MinVar/BL/EW comparison
+- `iter10_backtest_practices.csv` — Bias validation results
+- `iter10_comprehensive_perf.csv` — All 8 strategies with Calmar
+- `iter10_comprehensive_walkforward.csv` — SMA200 walk-forward
+- `iter10_comprehensive_validation.csv` — Purged K-Fold results
+- `iter10_equity.png` — 4-panel visualization
+
+## Updated REPORT.md
+Full findings appended with ten-iteration synthesis table. The research pipeline now covers the entire QuantStart archive plus advanced frontiers (rough paths, rough volatility, deep learning, etc.).
+
+**Next iteration (#11)** could explore: Options strategies (VRP capture, delta hedging), Alternative data (Tiingo fundamentals, Polygon forex), or Multi-asset trend following with futures.
+[33m[agents/agent-command][39m [36m[agent] run f8151b32-d43c-4938-b584-53c001ceef76 ended with stopReason=stop[39m
