@@ -326,18 +326,22 @@ To https://github.com/saracdata/openclaw-research-experiment.git
    6648778..10b3104  main -> main
 Completed Iteration #16.
 Sleeping for 120 seconds before next iteration...
-out --local to use it, or stop the Gateway first (openclaw gateway stop).
-[main f4a15d3] Auto-research iteration #34 [2026-09-27 22:35]
- 1 file changed, 5 insertions(+), 1 deletion(-)
-To https://github.com/saracdata/openclaw-research-experiment.git
-   6ebfc19..f4a15d3  main -> main
-Completed Iteration #34.
-Sleeping for 120 seconds before next iteration...
 ------------------------------------------
-Starting Research Iteration #35 [Sun Sep 27 22:37:42 UTC 2026]
+Starting Research Iteration #17 [Sun Sep 27 22:46:51 UTC 2026]
 ------------------------------------------
-A Gateway is running for this state directory (pid 27654, port 18789). Run without --local to use it, or stop the Gateway first (openclaw gateway stop).
-[main 817556f] Auto-research iteration #35 [2026-09-27 22:37]
+We're still blocked on **iteration #14** due to the sandbox container misconfiguration. The working directory `/workspace` doesn't exist inside the container, preventing all command execution.
+
+**The iteration #14 subagent is active but cannot run any commands.**
+
+**Fix required (run in your terminal):**
+```bash
+openclaw update
+```
+
+Or use Control UI → restart gateway service.
+
+Once the sandbox is recreated with proper configuration, I'll complete #14, then proceed sequentially through #15, #16, #17. We've already done iterations #1-13 extensively.
+26-09-27 22:37]
  1 file changed, 5 insertions(+), 1 deletion(-)
 To https://github.com/saracdata/openclaw-research-experiment.git
    cd81ca3..817556f  main -> main
