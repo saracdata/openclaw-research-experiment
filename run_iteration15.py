@@ -596,9 +596,6 @@ print(f"  Covered Call Sharpe: {sh_cov_call:.3f}")
 
 # 3. Collar (Protective Put + Covered Call)
 print("  Testing Collar strategy...")
-collar_returns = prot_put_returns[:len(cov_call_returns)] + cov_call_returns - spy_ret_daily.resample('M').last().iloc[:len(collar_returns)]
-# Actually, collar = long stock + long put + short call
-# Net cost = put_cost - call_premium
 collar_rets = []
 for i in range(30, len(spy_px) - 30, 21):
     S = spy_px.iloc[i]
