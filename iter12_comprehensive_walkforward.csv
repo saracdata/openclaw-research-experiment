@@ -1,0 +1,4 @@
+Fold,Best_Window,Train_Sharpe,Test_Sharpe
+2,150,0.92,0.44
+3,200,0.88,0.86
+4,200,0.77,1.28
