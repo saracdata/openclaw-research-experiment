@@ -1,0 +1,6 @@
+Strategy,AnnRet%,AnnVol%,Sharpe,MaxDD%,Calmar
+Buy&Hold Equal Weight,8.43,10.25,0.84,-24.48,0.34
+SMA200 Trend,3.34,9.91,0.38,-32.43,0.1
+TSMOM 12-1 L/S,0.75,9.05,0.13,-26.0,0.03
+Dual Momentum 6m,4.36,17.84,0.33,-36.08,0.12
+Optimized MaxSharpe (walk-forward),5.32,10.81,0.53,-28.64,0.19

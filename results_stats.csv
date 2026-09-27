@@ -1,0 +1,11 @@
+Strategy,NW_t,SR_2.5%,SR_97.5%,DSR_p,years
+Buy&Hold SPY,3.9,0.46,1.45,1.0,14.7
+SMA200 Trend (SPY),3.58,0.43,1.43,1.0,14.7
+TSMOM 12-1 (SPY),1.41,-0.11,0.85,1.0,14.7
+MA 50/200 Cross (SPY),1.22,-0.15,0.83,1.0,14.7
+RSI(2) MeanRev (SPY),2.43,0.15,0.96,1.0,14.7
+Vol-Target 10% (SPY),3.45,0.37,1.34,1.0,14.7
+Dual Momentum GEM,6.42,1.13,2.05,0.001,14.7
+XSec Mom 12-1 Top3,4.64,0.62,1.58,1.0,14.3
+Short-Term Reversal,-5.93,-1.88,-0.96,1.0,14.3
+Pairs AAPL/MSFT z-score,-0.28,-0.6,0.41,1.0,14.3

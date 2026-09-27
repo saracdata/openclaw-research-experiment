@@ -1,0 +1,8 @@
+Strategy,NW_t,SR_2.5%,SR_97.5%,DSR_p,years
+EW Risk Assets B&H,3.28,0.33,1.34,0.0,14.7
+GEM rotation (12 asset universe),6.39,1.06,2.05,0.0,14.7
+GEM + SMA200 defensive switch,7.14,1.29,2.18,0.0,14.7
+Top-2 GEM + SMA200 defensive,7.27,1.32,2.23,0.0,14.7
+Top-2 GEM + SMA200 + VolTarget 10%,6.45,1.17,2.1,0.0,14.7
+Multi-asset SMA100 tactical,8.47,1.69,2.57,0.0,14.7
+Cross-asset TSMOM long/short 2x,4.81,0.78,1.69,0.0,14.7

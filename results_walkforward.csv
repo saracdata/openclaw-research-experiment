@@ -1,0 +1,7 @@
+Strategy,F1,F2,F3,F4
+SMA200 Trend (SPY),0.82,0.36,0.85,1.49
+TSMOM 12-1 (SPY),-0.32,-0.08,0.44,1.38
+RSI(2) MeanRev (SPY),0.14,0.43,0.63,1.04
+Vol-Target 10% (SPY),0.7,0.71,0.66,1.15
+Dual Momentum GEM,2.1,1.17,1.32,2.07
+XSec Mom 12-1 Top3,1.75,0.87,1.2,0.77

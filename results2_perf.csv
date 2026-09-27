@@ -1,0 +1,8 @@
+name,AnnRet%,AnnVol%,Sharpe,MaxDD%,days,Calmar
+EW Risk Assets B&H,11.99,15.76,0.8,-33.19,3704,0.36
+GEM rotation (12 asset universe),31.87,19.58,1.51,-29.97,3704,1.06
+GEM + SMA200 defensive switch,33.5,17.58,1.73,-19.42,3704,1.73
+Top-2 GEM + SMA200 defensive,31.52,16.25,1.77,-19.42,3704,1.62
+Top-2 GEM + SMA200 + VolTarget 10%,18.53,10.83,1.62,-11.6,3704,1.6
+Multi-asset SMA100 tactical,30.71,13.07,2.12,-13.15,3704,2.34
+Cross-asset TSMOM long/short 2x,28.73,23.15,1.21,-33.57,3704,0.86
