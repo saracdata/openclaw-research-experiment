@@ -82,7 +82,7 @@ class LimitOrderBook:
             available = book[price]
             fill = min(remaining, available)
             exec_prices.extend([price] * fill)
-            exec_qtys.append(fill)
+            exec_qtys.extend([1] * fill)  # Each share gets weight 1
             book[price] -= fill
             remaining -= fill
             if book[price] == 0:
@@ -281,6 +281,7 @@ def fbm_circulant(n, H):
     
     Z = np.random.randn(m) + 1j * np.random.randn(m)
     fft_Z = np.fft.fft(Z)
+    # Fix broadcasting: eigvals and fft_Z should have same shape
     fBm = np.fft.ifft(np.sqrt(eigvals) * fft_Z).real[:n]
     return fBm / np.sqrt(n) * n**H  # Scale
 
