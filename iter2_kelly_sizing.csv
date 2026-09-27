@@ -1,0 +1,5 @@
+Strategy,Sizing,Sharpe,AnnRet%
+SMA200,Fixed,0.95,10.85
+SMA200,Kelly,0.92,20.69
+GEM,Fixed,0.49,6.1
+GEM,Kelly,0.42,10.06

@@ -1,0 +1,4 @@
+Strategy,Sharpe,AnnRet%,MaxDD%
+Ensemble Equal,0.89,7.39,-14.19
+Ensemble Vol-Weighted,0.66,3.15,-9.47
+Ensemble Min-Var,0.67,1.29,-5.51

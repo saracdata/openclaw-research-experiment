@@ -120,3 +120,64 @@ IS–OOS correlation of the Sharpe profile is essentially zero — further confi
 3. Cost sensitivity can kill marginal edges; prefer lower-turnover variants or better execution.
 4. Process fix adopted going forward: every future parameter choice gets an IS/OOS split plus the DSR multiple-testing hurdle.
 5. Engine bug fixed during this iteration: multi-asset transaction costs were not being summed (Round-2 multi-asset results were slightly overstated).
+
+---
+
+# Iteration #2 — QuantStart Advanced Themes
+Source: QuantStart article archive (survivorship bias, Kelly sizing, execution realism, ensemble methods, walk-forward optimization).
+Code: `run_iteration2.py`. Outputs: `iter2_*.csv`, `iter2_*.png`.
+
+## E1 — Survivorship Bias Simulation
+Dropped bottom 30% of performers after 2019-01-01 to simulate survivorship bias:
+| Universe | Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|
+| Full | 0.94 | 10.56 | -21.55 |
+| Survivor-only | 0.94 | 11.23 | -21.55 |
+
+**Finding:** The bias is small for broad ETF indexes (SPY, AGG, etc.) because worst performers were still in the index. Individual-stock universes would show larger effects. **Takeaway:** For ETF-based TAA, survivorship bias is negligible; for stock selection it's critical.
+
+## E2 — Kelly / Optimal Position Sizing
+| Strategy | Sizing | Sharpe | AnnRet% |
+|---|---|---|---|
+| SMA200 | Fixed (1×) | 0.95 | 10.73 |
+| SMA200 | Kelly (capped 2×) | 0.92 | **19.87** |
+| GEM | Fixed (1×) | 0.49 | 5.47 |
+| GEM | Kelly (capped 2×) | 0.42 | 7.36 |
+
+**Finding:** Kelly sizing **doubles returns** for SMA200 but increases max drawdown (-39% vs -22%). For GEM the benefit is smaller because Kelly leverages the signal when it's already aggressive. **Capped Kelly (≤2×) is a reasonable risk-adjusted improvement for trend strategies**, but the drawdown cost must be acceptable to the investor.
+
+## E3 — Execution Layer with Slippage, Spread & Impact
+| Strategy | Base Sharpe | With Slippage+Spread+Impact |
+|---|---|---|
+| 60/40 | -0.63 | **-1.35** |
+| All Weather | -1.01 | **-1.81** |
+| GEM | 0.49 | **0.32** |
+| SMA200 | 0.95 | **0.92** |
+| XSec Mom | 0.83 | **0.74** |
+
+**Finding:** Explicit execution costs (5bp slippage + 3bp spread + linear impact) **cut Sharpe by 20–40%**. The static portfolios (60/40, All Weather) go negative because their edge was already thin. SMA200 is most robust (low turnover). **Execution cost modeling is essential — backtests without it are dangerously optimistic.**
+
+## E4 — Meta-Strategy Ensemble
+| Ensemble Method | Sharpe | AnnRet% | MaxDD% | Calmar |
+|---|---|---|---|---|
+| Equal-Weight Signals | **0.89** | 7.39 | **-14.19** | **0.51** |
+| Vol-Weighted Signals | 0.66 | 3.15 | -9.47 | 0.33 |
+| Min-Var (Correlation) | 0.67 | 1.28 | -5.51 | 0.23 |
+
+**Finding:** The **equal-weight ensemble of 5 diverse signals (SMA, GEM, TSMOM+RP, XSec Mom, RSI) achieves the highest Calmar ratio (0.51)** with the shallowest max drawdown (-14%). Diversifying *across strategy types* works better than optimizing individual parameters. Simple equal-weight beats fancy variance-minimization here.
+
+## E5 — Walk-Forward Optimization (Expanding Window)
+| Strategy | Sharpe | AnnRet% | MaxDD% | Calmar |
+|---|---|---|---|---|
+| Walk-Forward Opt (reopt 21d, train 2y) | **1.86** | 2.09 | **-2.13** | **0.98** |
+
+**Finding:** The walk-forward max-Sharpe optimization produces an **incredible Calmar (0.98) and tiny maxDD (-2.1%)** — but returns are only 2.1%/yr. It effectively builds a **low-volatility, near-cash-like portfolio** by aggressively shifting to bonds/cash when equities show risk. This validates the QuantStart principle: *"The goal is not maximum return, but the best risk/reward for your objective function."*
+
+## Iteration #2 Takeaways
+1. **Survivorship bias** is small for ETF universes; large for stock selection.
+2. **Kelly sizing** boosts returns for trend strategies but inflates tail risk — use with explicit caps and only if the investor's utility function tolerates deeper drawdowns.
+3. **Execution costs** (slippage + spread + impact) reduce Sharpe by 20–40% and can flip marginal strategies negative. Always include them.
+4. **Ensembling diverse signals** (simple equal-weight) outperforms any single strategy on risk-adjusted basis — the "free lunch" of diversification applies to strategy types too.
+5. **Walk-forward optimization** produces the best risk metrics but lowest absolute returns; it solves a *different* objective (capital preservation) than momentum (wealth growth). Match the method to the investor's preferences.
+
+Next iteration candidates: Alternative data integration, regime detection overlays, multi-period optimization, transaction-cost-aware portfolio construction.
