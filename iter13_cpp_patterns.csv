@@ -1,0 +1,5 @@
+Pattern,Python_Implementation,QuantStart_CPP_Equivalent
+Strategy,ABC + __call__,Virtual PayOff
+Template_Method,Base class + hook,MC base class
+Factory,Static factory method,OptionFactory
+Bridge,ABC + composition,PricingEngine bridge

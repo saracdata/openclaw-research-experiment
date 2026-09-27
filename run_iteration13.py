@@ -442,6 +442,11 @@ class Option:
     def __init__(self, strike, option_type):
         self.strike = strike
         self.option_type = option_type
+    def __call__(self, spot):
+        if self.option_type == 'call':
+            return max(spot - self.strike, 0.0)
+        else:
+            return max(self.strike - spot, 0.0)
 
 market = {'spot': 100, 'strike': 100, 'rate': 0.05, 'vol': 0.2, 'expiry': 1.0}
 opt = Option(100, 'call')
