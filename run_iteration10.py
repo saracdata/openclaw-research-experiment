@@ -6,13 +6,14 @@ import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from engine import load, backtest, performance
+from engine import load, backtest, perf as performance
 from strategies import *
 import warnings
 warnings.filterwarnings('ignore')
 
 # Load data
-price_df = load()
+TICKERS = ['SPY', 'QQQ', 'IWM', 'TLT', 'GLD', 'EFA', 'EEM', 'IEF', 'AGG', 'VNQ', 'DBC', 'XLP', 'XLU', 'XLE', 'XLF', 'IEI', 'VIG', 'SCHD', 'MDY', 'XLK', 'XLV', 'VTI', 'VEA', 'VWO', 'GOVT', 'SHY', 'BIL', 'LQD', 'HYG', 'SMH']
+price_df = pd.DataFrame({t: load(t)['Close'] for t in TICKERS}).dropna()
 tickers = price_df.columns.tolist()
 
 # ============================================================================
