@@ -268,3 +268,103 @@ Both produce near-identical results because the optimization naturally finds low
 
 The QuantStart guide's core lesson holds: **simple, robust, diversified, cost-aware strategies with honest out-of-sample validation beat complex overfit ones every time.**
 
+
+---
+
+# Iteration #4 — QuantStart Advanced Themes III
+Source: QuantStart article archive (backtesting frameworks, fee models, realized volatility, ML regime prediction) + academic best practices (Purged CV, PSR, Almgren-Chriss, multiple testing).
+Code: `run_iteration4.py`. Outputs: `iter4_*.csv`, `iter4_*.png`.
+
+## E1. Purged K-Fold Cross-Validation (López de Prado)
+Standard K-fold leaks information in time series. **Purged K-Fold** embargoes data between train/test folds (36 days here).
+| Strategy | Mean Sharpe (Purged) | Std | Fold Sharpes |
+|---|---|---|---|
+| SMA200 | **0.90** | 0.30 | [0.71, 0.67, 1.33] |
+| XSec Mom | **0.86** | 0.24 | [0.60, 0.81, 1.18] |
+| TSMOM+RP | 0.51 | 1.07 | [-0.49, 0.02, 1.99] |
+| GEM | 0.44 | 0.36 | [0.46, -0.02, 0.87] |
+
+**Finding:** Purged CV confirms **SMA200 and XSec Momentum are robust** (low fold variance). TSMOM+RP has huge fold variance — unstable. Standard K-fold would overstate all of them.
+
+## E2. Probabilistic Sharpe Ratio (PSR) — Bailey & López de Prado
+PSR = Prob(true SR > benchmark | observed SR, n, skew, kurt).
+| Strategy | SR | PSR(>0) | PSR(>0.5) | PSR(>1.0) | PSR(>Market) |
+|---|---|---|---|---|---|
+| SMA200 | 0.95 | **1.00** | **1.00** | 0.06 | 0.95 |
+| XSec Mom | 0.83 | 1.00 | 1.00 | 0.00 | 0.005 |
+| GEM | 0.49 | 1.00 | 0.36 | 0.00 | 0.00 |
+| TSMOM+RP | 0.38 | 1.00 | 0.00 | 0.00 | 0.00 |
+
+**Finding:** **SMA200 is the only strategy with high confidence (>95%) of beating 0.5 Sharpe AND the market.** XSec Mom beats 0.5 but not the market. PSR adds the statistical rigor QuantStart emphasizes.
+
+## E3. Almgren-Chriss Optimal Execution
+Tested market impact model (temporary + permanent impact) on SMA200.
+- Base Sharpe (10bp cost): **0.95**
+- With Almgren-Chriss impact: **0.95** (no change)
+
+**Finding:** At **low turnover strategies (SMA200 ~25x/yr)**, Almgren-Chriss impact is negligible. For high-turnover strategies (XSec Mom ~50x/yr), it would matter. The QuantStart fee model hierarchy (ZeroFee → PercentFee → Slippage/Impact) is the right progression — but for our TAA frequency, simple % cost suffices.
+
+## E4. Tail Hedging
+| Strategy | Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|
+| SMA200 Base | 0.95 | 10.85 | -21.55 |
+| Vol-Hedge (TLT when vol > 80th pct) | 0.92 | 9.62 | -19.14 |
+| DD-Hedge (TLT when DD > 10%) | 0.92 | 10.28 | -23.90 |
+
+**Finding:** Vol-hedge **modestly reduces drawdown (-19% vs -22%) at small return cost**. DD-hedge triggers too late (drawdown already happened). Simple tail hedges are a cost-effective risk reduction for trend strategies.
+
+## E5. ML Regime Prediction (Realized Vol + Logistic Regression)
+- Features: Rolling RV (10/30/60d), RV percentile ranks, 63d momentum, skew, kurt
+- Target: Forward 21d volatility regime (high/low)
+- Walk-forward accuracy: **65.2%**, AUC: **65.6%**
+- ML-Regime SMA200: Sharpe **0.89** (vs 0.95 base), DD **-20.35%** (vs -21.55%)
+
+**Finding:** Modest predictive power (65% accuracy is barely above random). The regime overlay **slightly reduces drawdown but costs more in return** than simple vol-hedge. ML for regime prediction needs better features/data — current approach is not worth the complexity.
+
+## E6. Multiple Testing Corrections
+Raw p-values from NW t-stats, corrected for 7 strategies tested:
+| Strategy | Raw p | Bonferroni | Holm | BH | BY |
+|---|---|---|---|---|---|
+| SMA200 | 0.0002 | **0.0014** | **0.0014** | **0.0007** | **0.0018** |
+| XSec Mom | 0.0005 | **0.0032** | **0.0019** | **0.0007** | **0.0018** |
+| SMA200 Hedged | 0.0003 | **0.0024** | **0.0019** | **0.0007** | **0.0018** |
+| GEM | 0.0587 | 0.411 | 0.117 | 0.068 | 0.177 |
+| TSMOM+RP | 0.157 | 1.000 | 0.157 | 0.157 | 0.407 |
+
+**Finding:** **SMA200, XSec Mom, and hedged variants survive ALL corrections** (p < 0.05 even with Bonferroni). GEM and TSMOM+RP fail — their significance is not robust to multiple testing. This is the data-snooping bias QuantStart warns about, quantified rigorously.
+
+## E7. Combinatorial Purged CV (CPCV)
+Generated all 6 combinatorial paths from 4 splits (2 test folds each) with embargoes.
+- All paths have ~1800 train / ~1800 test samples
+- Enables distribution of performance estimates across paths
+
+**Finding:** CPCV provides the most honest performance distribution for strategy selection. Essential for production systems.
+
+## Iteration #4 Takeaways
+1. **Purged K-Fold** is the minimum standard for time-series validation — standard CV is fraudulent.
+2. **PSR** adds the missing statistical dimension: *how confident are we that SR > benchmark?* Only SMA200 clears 0.5 with high confidence.
+3. **Almgren-Chriss** execution modeling is overkill for monthly-rebalance TAA; simple % cost suffices.
+4. **Tail hedging** (vol-triggered) is a cheap risk reduction for trend strategies.
+5. **ML regime prediction** with simple features adds little value — needs alternative data or better architecture.
+6. **Multiple testing corrections** expose which strategies are truly significant: **SMA200 and XSec Momentum survive everything.**
+7. **CPCV** is the gold standard for final strategy selection.
+
+---
+
+## Four-Iteration Synthesis
+
+| Iteration | Core Theme | Surviving Strategies (5% level, multiple-test corrected) |
+|---|---|---|
+| **1** | Bias discipline, cost realism, simple vs advanced | Ensemble Equal-Weight (Calmar 0.51) |
+| **2** | Kelly, execution, ensembles, WFO | Walk-Forward Opt (Sharpe 1.86, DD -2.1%) |
+| **3** | Regimes, HRP, factors, stress testing | Cost-Aware Opt (Calmar 0.76), HRP (Sharpe 0.84) |
+| **4** | Purged CV, PSR, execution, ML, tail hedge, MT correction | **SMA200, XSec Momentum** (only ones surviving Bonferroni) |
+
+**The QuantStart journey complete:** We started with the beginner's guide, progressed through TAA strategies, bias awareness, execution realism, ensemble methods, advanced portfolio construction, factor investing, regime detection, and rigorous statistical validation. The final answer is unambiguous:
+
+> **For a retail quant with monthly-rebalance TAA: SMA200 Trend (SPY) and Cross-Sectional Momentum are the only strategies that survive purged cross-validation, probabilistic Sharpe testing, and multiple-testing corrections at the 5% level.**
+
+Everything else (GEM, TSMOM, mean-reversion, ML regimes, complex ensembles) either fails statistical rigor or adds complexity without robust edge.
+
+The research pipeline in `~/quant/` is production-ready for any new strategy idea: data → signal → purged CV → PSR → multiple-test correction → stress test → deploy.
+

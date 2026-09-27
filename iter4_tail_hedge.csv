@@ -1,0 +1,4 @@
+Strategy,Sharpe,AnnRet%,MaxDD%
+SMA200 Base,0.95,10.85,-21.55
+SMA200 Vol-Hedge,0.92,9.62,-19.14
+SMA200 DD-Hedge,0.92,10.28,-23.9
