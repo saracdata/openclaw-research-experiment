@@ -222,3 +222,13 @@ Starting Research Iteration #13 [Sun Sep 27 12:39:45 UTC 2026]
 [33m[agent/embedded][39m [33mProfile openrouter:default idle timeout (model silent). No further authorized account for this provider; create a backup auth profile and add its id to auth.order to enable failover.[39m
 [33m[agent/embedded][39m [33membedded run failover decision: runId=00f91118-c3ed-4736-9f72-5567f1c8c436 stage=assistant decision=surface_error reason=timeout attempt=1 retry=1 rotations=0 from=openrouter/nvidia/nemotron-3-ultra-550b-a55b:free profile=sha256:ac092b59b472[39m
 The model did not produce a response before the model idle timeout. Please try again, or increase `models.providers.<id>.timeoutSeconds` for slow local or self-hosted providers. If `agents.defaults.timeoutSeconds` or a run-specific timeout is lower, raise that ceiling too; provider timeouts cannot extend the whole agent run.
+[main dc3a6f7] Auto-research iteration #13 [2026-09-27 12:44]
+ 1 file changed, 4 insertions(+)
+To https://github.com/saracdata/openclaw-research-experiment.git
+   c7d36ec..dc3a6f7  main -> main
+Completed Iteration #13.
+Sleeping for 120 seconds before next iteration...
+------------------------------------------
+Starting Research Iteration #14 [Sun Sep 27 12:46:25 UTC 2026]
+------------------------------------------
+failed to acquire gateway state ownership
