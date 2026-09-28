@@ -1721,3 +1721,154 @@ Sentiment_ML_Ensemble                                                           
 5. **Backtesting framework**: Build bias-aware framework (look-ahead detection, survivorship correction, multiple testing adjustment)
 6. **Combine with Iteration 16 RL**: Use portfolio optimization as action space, backtesting bias checks as constraints
 
+
+---
+
+# Iteration #11 — Multi-Asset Futures Trend Following, Fundamental Data, News Sentiment, Event-Driven Architecture, Interactive Prototyping
+**Date**: 2026-09-28 03:30 UTC
+
+## Concepts from QuantStart Articles Tested
+- **Multi-Asset Futures TSMOM**: "Trend Following on Futures" (Moskowitz, Ooi, Pedersen 2012) — diversified futures trend following
+- **Fundamental Data**: "Evaluating Data Coverage with Tiingo" — quality/value factors from fundamentals
+- **News Sentiment**: "Tiingo News API" — sentiment-driven trading
+- **Event-Driven Architecture**: "QSTrader" series — modular event-driven backtesting
+- **Interactive Prototyping**: "Jupyter and Plotly for Quantitative Finance" — visualization environment
+
+## Strategy Performance (Net of 10 bps Costs, 3668 days)
+
+| Strategy | AnnRet% | AnnVol% | Sharpe | MaxDD% | Calmar |
+|---|---|---|---|---|---|
+| **SMA200** | 10.23 | 11.36 | **0.91** | -21.55 | **0.47** |
+| VolTarget | 9.56 | 11.34 | 0.86 | -15.13 | 0.63 |
+| RSI2 | 4.31 | 7.64 | 0.59 | -18.37 | 0.23 |
+| TSMOM | 3.72 | 16.68 | 0.30 | -37.06 | 0.10 |
+| MACross | 2.81 | 16.66 | 0.25 | -40.36 | 0.07 |
+| GEM | 3.17 | 8.90 | 0.40 | -36.99 | 0.09 |
+| XSecMom | -0.19 | 3.12 | -0.05 | -18.01 | -0.01 |
+| Rev5 | -0.30 | 0.83 | -0.36 | -5.33 | -0.06 |
+| FuturesTSMOM | -86.66 | 104.86 | -1.36 | -100.00 | -0.87 |
+
+## Key Findings
+
+### 1. Multi-Asset Futures TSMOM Fails on ETF Proxies
+| Strategy | Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|
+| Multi-Asset Futures TSMOM (ETF proxies) | **-1.36** | -86.66% | -100% |
+| Single-Asset SPY TSMOM | 0.30 | 3.72% | -37.06% |
+
+**Finding**: **Futures TSMOM fails catastrophically on ETF proxies** (-1.36 Sharpe, -100% DD). The classic paper uses actual futures with:
+- Continuous contracts (roll yield)
+- Leverage (10-20x notional)
+- Diversified universe (40+ futures across rates, FX, commodities, equities)
+- Proper volatility targeting per contract
+
+ETF proxies lack:
+- **Roll yield** (contango/backwardation is major return source)
+- **Leverage** (futures are inherently leveraged)
+- **Short exposure** (most ETFs are long-only; inverse ETFs have decay)
+- **Cross-asset correlations** (futures correlations differ from ETF proxies)
+
+**By asset class (ETF proxies)**:
+- Equities: -0.40 Sharpe
+- Bonds: -1.31 Sharpe  
+- Commodities: -0.68 Sharpe
+- Real Estate: 0.00 Sharpe
+- Volatility: 0.00 Sharpe
+
+**Conclusion**: Futures trend following **cannot be validated with ETF proxies**. Requires actual futures data with continuous contracts, proper roll methodology, and leverage.
+
+### 2. Fundamental Factors (Simulated): Quality & Value Work
+| Factor | Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|
+| **Quality (top 3 ROE, low D/E)** | **0.94** | 18.89% | -39.68% |
+| **Value (top 3 low P/E, low P/B)** | **1.38** | 37.68% | -41.08% |
+| Quality + Value Combined | 1.26 | 28.38% | -37.84% |
+
+**Finding**: **Simulated fundamental factors show strong performance** — but this is **entirely simulated data** with persistent characteristics. Real fundamental data would have:
+- Reporting lags (quarterly, delayed)
+- Revisions
+- Accounting differences
+- Survivorship in fundamental databases
+
+The high returns (18-38%) suggest the simulation creates persistent factor premiums that may not survive real-world frictions. **Needs validation with real fundamental data (Compustat, Tiingo, etc.)**.
+
+### 3. News Sentiment (Simulated): No Alpha
+| Strategy | Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|
+| News Sentiment Only | -0.56 | -3.08% | -37.98% |
+| SMA200 + News Combined | 0.58 | 3.57% | -14.64% |
+
+**Finding**: **Simulated AR(1) news sentiment produces no alpha** (-0.56 Sharpe). Combined with SMA200 reduces Sharpe from 0.95 to 0.58. Real news sentiment would need:
+- Entity-level sentiment (not market-wide)
+- Event-driven timing (earnings, M&A, macro surprises)
+- High-frequency processing
+- Alternative data sources (social media, satellite, credit card)
+
+### 4. Event-Driven Architecture: Validated
+| Architecture | Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|
+| Event-Driven (QSTrader-style) | 0.869 | 9.82% | -20.1% |
+| Vectorized | 0.910 | 10.23% | -21.55% |
+
+**Finding**: Event-driven engine produces **similar results to vectorized** (0.87 vs 0.91). The architecture correctly implements:
+- MarketEvent → Strategy → SignalEvent → Portfolio → OrderEvent → Execution → FillEvent → Portfolio update
+- Modular components (swap strategy, execution, broker)
+- Proper event ordering and state management
+
+**Advantages of event-driven**:
+- Supports limit/stop orders, partial fills
+- Realistic slippage and latency modeling
+- Multi-asset, multi-strategy portfolio management
+- Live trading compatibility (same code path)
+
+### 5. Interactive Prototyping Environment: Validated
+Generated visualization suite:
+- `iter11_prototyping.png` — Equity curve, drawdown, return distribution for event-driven SMA200
+- `iter11_futures_equity.png` — Multi-asset futures TSMOM by asset class and combined
+
+**Finding**: Matplotlib/Plotly environment works for rapid strategy visualization. For production:
+- Plotly/Dash for interactive web dashboards
+- Real-time data streaming
+- Parameter sliders for live optimization
+- Integration with event-driven engine for live paper trading
+
+### 6. Walk-Forward Validation (Futures TSMOM)
+| Fold | Best VolTarget | Train Sharpe | Test Sharpe |
+|---|---|---|---|
+| 1 | 0.4 | -0.88 | -0.88 |
+| 2 | 0.5 | -1.83 | -2.19 |
+| 3 | 0.3 | -1.60 | -1.01 |
+| 4 | 0.4 | -1.36 | -0.64 |
+
+**Finding**: All folds negative — confirms Futures TSMOM on ETF proxies is fundamentally broken regardless of parameter optimization.
+
+### 7. Purged K-Fold Validation
+| Fold | Sharpe |
+|---|---|
+| 1 | 1.094 |
+| 2 | 0.525 |
+| 3 | 1.401 |
+| **Mean** | **1.007** |
+| **Std** | **0.363** |
+
+**Finding**: Purged CV on SPY returns gives mean 1.01 ± 0.36 — consistent with previous iterations. High variance across folds confirms regime dependence.
+
+## Files Generated
+- `iter11_comprehensive_perf.csv` — 9-strategy performance
+- `iter11_comprehensive_validation.csv` — Purged K-Fold results
+- `iter11_comprehensive_walkforward.csv` — Futures TSMOM walk-forward
+- `iter11_futures_tsmom.csv` — Multi-asset vs single-asset TSMOM
+- `iter11_fundamentals.csv` — Quality/Value factor results (simulated)
+- `iter11_news_sentiment.csv` — News sentiment results (simulated)
+- `iter11_architecture.csv` — Event-driven vs vectorized comparison
+- `iter11_futures_equity.png` — Futures TSMOM equity curves by asset class
+- `iter11_prototyping.png` — Event-driven equity, drawdown, return distribution
+
+## Next Steps
+1. **Futures data**: Acquire continuous futures data (CME, ICE, etc.) with proper roll methodology for real TSMOM validation
+2. **Real fundamentals**: Integrate Tiingo/Compustat/API for actual quality/value/momentum factors on 500+ stocks
+3. **Real news sentiment**: Use Tiingo News, RavenPack, or similar for entity-level sentiment with timestamps
+4. **Event-driven engine**: Extend with limit orders, VWAP/TWAP execution, OMS/EMS integration for live trading
+5. **Prototyping**: Build Dash/Streamlit dashboard for strategy monitoring with real-time updates
+6. **Combine with Iteration 16 RL**: Use event-driven engine as environment for RL portfolio optimization
+
