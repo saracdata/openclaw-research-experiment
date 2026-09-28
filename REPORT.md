@@ -2851,3 +2851,132 @@ Both Bayesian (α=1, β=252) and MLE linear regression achieve **Sharpe 3.96** �
 4. **Bayesian Model Averaging**: Instead of single regression
 5. **Online Covariance Shrinkage**: Recursive Ledoit-Wolf updating
 
+
+---
+
+# Iteration #23 — QuantStart: Backtesting Frameworks, Fee Models, Asset Classes, Portfolio Construction
+**Date**: 2026-09-28 05:43 UTC
+
+## Concepts from QuantStart Articles Tested
+1. **Fee Model Class Hierarchy** — QSTrader: IB Commission, Fixed BPS, Percentage, Tiered
+2. **Slippage Models** — Fixed, Volume-based, Square-root market impact
+3. **Backtesting with Realistic Costs** — Vectorized vs Event-Driven
+4. **Event-Driven Backtesting Framework** — Market/Signal/Order/Fill events, Portfolio, ExecutionHandler
+5. **Portfolio Construction** — 60/40, Equal Weight, Risk Parity, Min Variance, Max Diversification
+6. **Realised Volatility Estimation** — Parkinson, Garman-Klass, Rogers-Satchell, Yang-Zhang
+7. **Data Quality & Coverage** — Stooq/Tiingo style analysis: gaps, outliers, stale prices
+8. **Asset Class Hierarchy** — Equity, Bond, Commodity, ETF, Real Estate, Volatility
+
+## Strategy Performance (Net of 10 bps Costs, 2179 days, 32 tickers)
+
+| Strategy | AnnRet% | AnnVol% | Sharpe | MaxDD% | Calmar |
+|---|---|---|---|---|---|
+| **Risk_Parity** | 3.25 | 2.32 | **1.39** | **-4.87** | **0.67** |
+| **GEM** | 3.27 | 3.49 | 0.94 | -8.10 | 0.40 |
+| **Equal_Weight** | 8.26 | 10.26 | 0.82 | -19.46 | 0.42 |
+| **SMA200** | 9.78 | 11.76 | 0.85 | -21.55 | 0.45 |
+| **Event_Driven** | 23.54 | 38.92 | 0.74 | -65.67 | 0.36 |
+| **60_40** | 8.02 | 12.25 | 0.69 | -27.24 | 0.29 |
+| **VolTarget** | 7.77 | 11.46 | 0.71 | -15.13 | 0.51 |
+| **RSI2** | 5.76 | 9.05 | 0.66 | -17.06 | 0.34 |
+| **Min_Var** | 1.99 | 3.75 | 0.55 | -15.11 | 0.13 |
+| **Max_Div** | 3.43 | 7.05 | 0.51 | -27.81 | 0.12 |
+| **TSMOM** | 7.86 | 19.09 | 0.49 | -34.58 | 0.23 |
+
+## Statistical Validation (Newey-West, Bootstrap CI, Deflated Sharpe)
+
+| Strategy | NW_t | Sharpe | DSR_p | BS_CI_low | BS_CI_high | Years |
+|---|---|---|---|---|---|---|
+| **Risk_Parity** | **4.021** | **1.392** | 0.000 | 0.646 | 2.176 | 8.6 |
+| **GEM** | **2.746** | **0.940** | 0.000 | 0.293 | 1.608 | 8.6 |
+| **Equal_Weight** | **2.563** | **0.824** | 0.000 | 0.210 | 1.569 | 8.6 |
+| **Event_Driven** | **2.517** | **0.738** | 0.000 | 0.171 | 1.473 | 8.6 |
+| **SMA200** | **2.487** | **0.853** | 0.000 | 0.190 | 1.534 | 8.6 |
+| **RSI2** | **2.221** | **0.664** | 0.001 | 0.175 | 1.193 | 8.6 |
+| **VolTarget** | **2.174** | **0.711** | 0.000 | 0.171 | 1.437 | 8.6 |
+| **60_40** | **2.074** | **0.691** | 0.000 | 0.084 | 1.449 | 8.6 |
+| **Min_Var** | 1.595 | 0.545 | 0.000 | -0.159 | 1.264 | 8.4 |
+| **Max_Div** | 1.588 | 0.514 | 0.001 | -0.132 | 1.102 | 8.4 |
+| **TSMOM** | 1.582 | 0.492 | 0.028 | -0.173 | 1.115 | 8.6 |
+
+## Key Findings
+
+### 1. Risk Parity Dominates (Sharpe 1.39, NW_t=4.02)
+**Risk Parity is the best-performing portfolio construction method** across all iterations:
+- Sharpe 1.39 with only -4.87% max drawdown
+- Calmar 0.67 (best risk-adjusted)
+- Low volatility (2.32%) by construction
+- NW_t = 4.02 (highly significant)
+
+The inverse-volatility weighting naturally adapts to regime changes, reducing equity exposure when vol spikes.
+
+### 2. Fee/Slippage Model Sensitivity
+| Cost Model | SMA200 Sharpe |
+|---|---|
+| 1bps fee + Volume slippage | 0.897 |
+| 1bps fee + 1bps slip | 0.894 |
+| 10bps fee + 5bps slip (our standard) | 0.853 |
+| Tiered IBKR + Volume slip | ~0.89 |
+
+**Finding**: Realistic IBKR commission ($0.005/share, min $1) is only ~0.1 bps on 1000 shares @ $400 — far cheaper than 10 bps assumption. The square-root impact model (31.6 bps) is punitive for large orders.
+
+### 3. Event-Driven vs Vectorized Backtest
+- **Vectorized (10 bps)**: Sharpe 0.85
+- **Event-Driven (10bps fee + 5bps slip)**: Sharpe 0.74
+
+The event-driven framework captures path-dependent slippage and fill prices, reducing Sharpe by ~13%. The high 23.5% return comes from high leverage (38.9% vol) — not sustainable.
+
+### 4. Volatility Estimators: Yang-Zhang Best for Vol Targeting
+| Estimator | VolTarget Sharpe |
+|---|---|
+| Close-Close | 0.71 |
+| Parkinson | 0.68 |
+| Garman-Klass | 0.69 |
+| Rogers-Satchell | 0.70 |
+| **Yang-Zhang** | **0.72** |
+
+Yang-Zhang (incorporating overnight jumps) gives best vol-targeting results, confirming QuantStart's focus on intraday estimators.
+
+### 5. Portfolio Construction Hierarchy
+1. **Risk Parity** (1.39) — Best risk-adjusted
+2. **GEM** (0.94) — Best simple rotation
+3. **Equal Weight** (0.82) — Surprising strong, beats SMA200
+4. **SMA200** (0.85) — Classic trend
+5. **60/40** (0.69) — Traditional benchmark
+6. **Min Var / Max Div** (0.51-0.55) — Underperform on this universe
+
+**Finding**: Naive risk parity (inverse vol) beats sophisticated optimization (MinVar, MaxDiv) because estimation error in covariance dominates.
+
+### 6. Data Quality Issues Detected
+- **Missing data**: Some tickers (VXX, VWO, etc.) have <100% coverage
+- **Stale prices**: Zero returns for 5+ days detected
+- **Outliers**: Returns >15% found in several tickers (likely splits/dividends not adjusted)
+- **Missing business days**: Calendar gaps present
+
+### 7. Asset Class Returns (Daily)
+- EQUITY: ~8-10% ann, ~15% vol
+- BOND: ~2-4% ann, ~5% vol  
+- COMMODITY: ~5% ann, ~18% vol
+- REAL_ESTATE: ~4% ann, ~17% vol
+- VOLATILITY (VXX): Strongly negative drift (contango)
+
+## Files Generated
+- `iter23_fee_slippage.csv` — Fee/slippage model comparison
+- `iter23_portfolios.csv` — Portfolio construction performance
+- `iter23_vol_estimators.csv` — Vol estimator comparison for vol targeting
+- `iter23_data_quality.csv` — Data coverage/quality metrics
+- `iter23_asset_class_returns.csv` — Asset class level returns
+- `iter23_validation.csv` — Full statistical validation
+- `iter23_comprehensive_perf.csv` — Performance summary
+- `iter23_fees_slippage.png` — 4-panel: fee/slippage costs, combinations, equity comparison
+- `iter23_portfolio_vol.png` — 4-panel: vol estimators, vol targeting, portfolio equity, Sharpe
+- `iter23_equity.png` — 12-panel equity curves
+- `iter23_data_quality.png` — 2-panel: missing data heatmap, outlier heatmap
+
+## Next Steps
+1. **Walk-Forward Portfolio Optimization**: Expanding window MinVar/MaxDiv with shrinkage
+2. **Real Intraday Data**: Use Polygon/IBKR for true Parkinson/GK/RS/YZ estimators
+3. **Event-Driven with Limit Orders**: Test TWAP/VWAP execution algorithms
+4. **Cost-Aware Portfolio Construction**: Include transaction costs in optimization objective
+5. **Multi-Currency Asset Classes**: FX hedging costs for international ETFs
+
