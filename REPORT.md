@@ -669,3 +669,114 @@ Sentiment_ML_Ensemble                                                           
 5. **Test on broader universe** (500+ stocks) for ML factor models from iteration 16
 6. **Integrate with iteration 16 RL optimizer** — use HRP weights as RL action space
 
+
+---
+
+# Iteration #3 — Advanced QuantStart Themes: Regimes, HRP, Factors, Cost-Aware Opt, Stress Testing
+**Date**: 2026-09-28 03:15 UTC
+
+## Concepts from QuantStart Articles Tested
+- **Regime Detection** (HMM/rule-based): "Market Regime Detection using Hidden Markov Models in QSTrader"
+- **Hierarchical Risk Parity**: "Risk Parity / Hierarchical Risk Parity" concepts
+- **Factor Investing**: "Systematic Tactical Asset Allocation" + factor proxies
+- **Cost-Aware Optimization**: "QSTrader Fee Model Class Hierarchy" + transaction cost integration
+- **Multi-Horizon Signals**: "Momentum Top N with Docker, Jupyter and QSTrader"
+- **Stochastic Stress Testing**: "Geometric Brownian Motion Simulation", "Ornstein-Uhlenbeck", "Jump-Diffusion"
+
+## Strategy Performance (Net of 10 bps Costs, 3668 days)
+
+| Strategy | AnnRet% | AnnVol% | Sharpe | MaxDD% | Calmar |
+|---|---|---|---|---|---|
+| **Cost-Aware Opt** | 2.29 | 1.25 | **1.81** | **-3.01** | **0.76** |
+| **Standard Opt** | 2.27 | 1.25 | **1.81** | -2.97 | 0.76 |
+| SMA200 | 10.73 | 11.36 | 0.95 | -21.55 | 0.50 |
+| HRP | 8.57 | 10.46 | 0.84 | -24.29 | 0.35 |
+| XSec Mom | 13.97 | 17.76 | 0.83 | -31.12 | 0.45 |
+| Factor Combo | 5.00 | 6.92 | 0.74 | -16.49 | 0.30 |
+| Regime Conservative | 4.45 | 6.79 | 0.68 | -10.16 | 0.44 |
+| Factor_momentum | 7.65 | 12.70 | 0.64 | -28.04 | 0.27 |
+| Factor_value | 4.30 | 7.68 | 0.59 | -17.51 | 0.25 |
+| Factor_low_vol | 2.14 | 3.88 | 0.57 | -12.18 | 0.18 |
+| Factor_quality | 5.12 | 9.67 | 0.57 | -23.65 | 0.22 |
+| Single Horizon | 4.96 | 9.41 | 0.56 | -23.19 | 0.21 |
+| Multi-Horizon | 4.67 | 9.61 | 0.52 | -34.52 | 0.14 |
+| GEM | 5.47 | 12.42 | 0.49 | -26.77 | 0.20 |
+| TSMOM+RP | 0.67 | 1.84 | 0.38 | -7.03 | 0.10 |
+| Regime Tactical | 3.77 | 9.51 | 0.44 | -21.38 | 0.18 |
+
+## Statistical Validation (Newey-West, Bootstrap CI, Deflated Sharpe)
+
+| Strategy | NW_t | SR 95% CI | DSR_p | Years |
+|---|---|---|---|---|
+| Cost-Aware Opt | 7.00 | [1.22, 2.50] | **0.000** | 14.6 |
+| Standard Opt | 6.98 | [1.22, 2.49] | **0.000** | 14.6 |
+| SMA200 | 3.71 | [0.45, 1.45] | 0.0006 | 14.6 |
+| HRP | 3.35 | [0.33, 1.41] | 0.6939 | 14.6 |
+| XSec Mom | 3.51 | [0.38, 1.30] | 0.8458 | 14.6 |
+| Factor Combo | 2.84 | [0.24, 1.27] | 1.000 | 14.6 |
+| Regime Conservative | 2.69 | [0.17, 1.17] | 1.000 | 14.6 |
+| Factor_momentum | 2.50 | [0.17, 1.13] | 1.000 | 14.6 |
+| Factor_low_vol | 2.13 | [0.04, 1.07] | 1.000 | 14.6 |
+| Factor_value | 2.31 | [0.10, 1.14] | 1.000 | 14.6 |
+| Factor_quality | 2.20 | [0.09, 1.06] | 1.000 | 14.6 |
+| Single Horizon | 2.13 | [0.04, 1.08] | 1.000 | 14.6 |
+| Multi-Horizon | 1.95 | [-0.04, 1.07] | 1.000 | 14.6 |
+| GEM | 1.89 | [0.00, 1.02] | 1.000 | 14.6 |
+| Regime Tactical | 1.73 | [-0.05, 0.93] | 1.000 | 14.6 |
+| TSMOM+RP | 1.42 | [-0.19, 0.96] | 1.000 | 14.6 |
+
+## Walk-Forward Stability (Sharpe per 4 folds)
+
+| Strategy | F1 | F2 | F3 | F4 |
+|---|---|---|---|---|
+| Cost-Aware Opt | 0.83 | 1.37 | 2.13 | **17.87** |
+| Standard Opt | 0.84 | 1.33 | 2.13 | **17.87** |
+| SMA200 | 1.16 | 0.71 | 0.67 | 1.33 |
+| XSec Mom | 0.77 | 0.60 | 0.81 | 1.18 |
+| HRP | 0.65 | 0.98 | 0.62 | 1.39 |
+| Factor Combo | 0.63 | 0.71 | 0.40 | 1.34 |
+| Regime Conservative | 0.51 | 0.60 | 0.94 | 0.64 |
+
+## Stochastic Stress Testing Results
+
+| Model | Mean Sharpe | Std Sharpe | Min Sharpe | Max Sharpe |
+|---|---|---|---|---|
+| GBM | 0.43 | 0.29 | -0.05 | 1.06 |
+| OU | **-4.51** | 0.87 | -6.36 | -2.50 |
+| Jump-Diffusion | 0.46 | 0.29 | -0.20 | 1.18 |
+
+## Key Findings
+
+1. **Cost-Aware Optimization Dominates (Sharpe 1.81)**: By explicitly penalizing expected turnover costs in the objective function, the cost-aware optimizer achieves exceptional Sharpe with minimal drawdown (-3.01%). The result is nearly identical to standard max-Sharpe optimization, suggesting that for this universe and cost level, the optimizer naturally finds low-turnover solutions.
+
+2. **Ornstein-Uhlenbeck Stress Test is Brutal (Sharpe -4.51)**: Mean-reverting synthetic paths destroy momentum strategies completely. This reveals a critical fragility: momentum strategies assume persistent trends, but OU processes exhibit strong mean reversion. Strategies should be tested against OU paths as a "worst case" for trend-following.
+
+3. **Jump-Diffusion is Similar to GBM**: Adding jumps (Merton model) doesn't significantly change momentum Sharpe distribution vs pure GBM. The mean Sharpe is actually slightly higher (0.46 vs 0.43), possibly because jumps create brief trend opportunities.
+
+4. **Regime-Aware Conservative Strategy Reduces Drawdown (MaxDD -10.2% vs -21.6%)**: Switching to cash during crisis regimes (vol > 66th pctile, mom < 50th pctile) cuts max drawdown by half while maintaining positive returns (4.45% ann). The tactical version (leveraged in bull, bonds in crisis) underperforms due to whipsaws.
+
+5. **HRP Portfolio Construction Adds Value (Sharpe 0.84)**: Hierarchical Risk Parity on the full 29-asset universe produces competitive Sharpe with reasonable drawdown. The clustering naturally groups correlated ETFs.
+
+6. **Factor Investing with Proxies Works Moderately**: Using price-only proxies for Value (long-term mean reversion), Quality (return stability), Low Vol (inverse vol), and Momentum produces diversified factor portfolios. The combined factor portfolio (Sharpe 0.74) outperforms individual factors through diversification.
+
+7. **Multi-Horizon Momentum Blending Doesn't Clearly Beat Single Horizon**: Weighted blend of 21/63/126/252-day momentum (Sharpe 0.52) underperforms single 126-day horizon (Sharpe 0.56). The additional noise from shorter horizons degrades the signal.
+
+8. **Cost-Aware and Standard Opt Show Extreme Fold-4 Sharpe (17.87)**: The 4th walk-forward fold (likely 2020-2026) shows anomalously high Sharpe for the optimizer strategies, suggesting a favorable regime (low vol, persistent trends) or potential overfitting to the recent period. This warrants investigation.
+
+## Files Generated
+- `iter3_comprehensive_perf.csv` — Full performance table
+- `iter3_comprehensive_validation.csv` — NW_t, bootstrap CI, DSR_p
+- `iter3_comprehensive_walkforward.csv` — 4-fold walk-forward Sharpe
+- `iter3_stress_testing.csv` — GBM/OU/Jump stress results
+- `iter3_equity.png` — All strategies equity curves
+- `iter3_regime_dist.png` — Regime distribution bar chart
+- `iter3_factor_weights.png` — Average factor weights per asset
+
+## Next Steps
+1. **Investigate fold-4 anomaly** in cost-aware optimizer (Sharpe 17.87)
+2. **Implement proper HMM** (hmmlearn convergence issues)
+3. **Test factor models on 500+ stock universe** with fundamental data
+4. **Add GARCH volatility forecasting** for dynamic risk budgeting
+5. **Real Kalman filter pairs** with EM for dynamic hedge ratios
+6. **Integrate iteration 16 RL optimizer** with HRP action space
+
