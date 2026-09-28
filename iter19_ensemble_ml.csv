@@ -1,0 +1,5 @@
+,name,AnnRet%,AnnVol%,Sharpe,MaxDD%,Calmar,days
+DecisionTree,DecisionTree,-5.65,8.88,-0.61,-59.32,-0.1,3451
+Bagging,Bagging,-6.95,11.15,-0.59,-66.28,-0.1,3451
+RandomForest,RandomForest,-7.26,10.83,-0.64,-68.29,-0.11,3451
+GradientBoosting,GradientBoosting,-9.13,11.26,-0.79,-77.3,-0.12,3451

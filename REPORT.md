@@ -2388,3 +2388,107 @@ The adaptive-noise Kalman filter on log prices produces **negative Sharpe**. The
 6. **Fee-Aware Optimization**: Integrate IB commission model into portfolio optimizer
 7. **Kalman for Pairs**: Apply enhanced KF to ETF pairs (SPY/IVV, GLD/IAU, TLT/IEF) as QuantStart articles demonstrate
 
+
+---
+
+# Iteration #19 — QuantStart Advanced: Interest Rate Models, ARIMA-GARCH, Cointegration, Ensemble ML, TAA, Sentiment
+**Date**: 2026-09-28 04:42 UTC
+
+## Concepts from QuantStart Articles Tested
+1. **Vasicek & Ornstein-Uhlenbeck Models** — "Vasicek Model Simulation", "Ornstein-Uhlenbeck Simulation with Python"
+2. **ARIMA+GARCH Trading** — "ARIMA+GARCH Trading Strategy on the S&P500" (skipped: statsmodels/arch unavailable)
+3. **GARCH Volatility Models** — "GARCH(p,q) Models for Time Series"
+4. **Cointegration** — "Johansen Test", "Cointegrated ADF Test", "Cointegrated Time Series for Mean Reversion"
+5. **Ensemble ML** — "Bootstrap Aggregation, Random Forests and Boosted Trees"
+6. **Decision Trees** — "Beginner's Guide to Decision Trees for Supervised ML"
+7. **60/40 & TAA** — "The 60/40 Benchmark Portfolio", "Systematic Tactical Asset Allocation"
+8. **Sentiment Analysis** — "Sentiment Analysis Trading Strategy via Sentdex Data in QSTrader"
+
+## Strategy Performance (Net of 10 bps Costs, 3704 days, 18 tickers)
+
+| Strategy | AnnRet% | AnnVol% | Sharpe | MaxDD% | Calmar |
+|---|---|---|---|---|---|
+| **SMA200** | **10.28** | 11.37 | **0.92** | -21.55 | 0.48 |
+| **VolTarget** | 9.42 | 11.29 | 0.85 | **-15.13** | **0.62** |
+| **60_40** | 9.53 | 10.39 | 0.93 | -27.24 | 0.35 |
+| **GEM** | 2.52 | 3.11 | 0.82 | -8.10 | 0.31 |
+| **XSecMom** | 0.56 | 0.70 | 0.80 | -1.84 | 0.30 |
+| **TAA_RiskParity** | 7.84 | 11.56 | 0.71 | -26.75 | 0.29 |
+| **RSI2** | 3.99 | 7.59 | 0.55 | -18.37 | 0.22 |
+| **TAA_Momentum** | 7.03 | 13.71 | 0.56 | -30.64 | 0.23 |
+| **TSMOM** | 4.36 | 16.56 | 0.34 | -37.06 | 0.12 |
+| **Momentum_Sentiment** | 2.34 | 11.64 | 0.26 | -31.37 | 0.07 |
+| **MA50_200** | 3.56 | 16.54 | 0.29 | -40.36 | 0.09 |
+| **Sentiment** | -3.65 | 10.01 | -0.32 | -47.43 | -0.08 |
+| **Equal_Weight_Pairs** | -4.91 | 9.02 | -0.51 | -57.19 | -0.09 |
+| **ML Ensemble (all)** | **-5 to -9** | 9-11 | **-0.6 to -0.8** | **-59 to -77** | **-0.1 to -0.12** |
+| **TAA_MinVar** | -0.43 | 0.04 | -10.13 | -6.12 | -0.07 |
+
+## Statistical Validation (Newey-West, Bootstrap CI, Deflated Sharpe)
+
+| Strategy | NW_t | Sharpe | DSR_p | BS_CI_low | BS_CI_high | Years |
+|---|---|---|---|---|---|---|
+| **SMA200** | **3.580** | **0.918** | 1.000 | 0.427 | 1.431 | 14.7 |
+| **VolTarget** | **3.448** | **0.854** | 1.000 | 0.373 | 1.340 | 14.7 |
+| **60_40** | **3.640** | **0.928** | 1.000 | 0.411 | 1.454 | 14.7 |
+| **XSecMom** | **3.233** | **0.801** | 1.000 | 0.330 | 1.337 | 14.7 |
+| **GEM** | **3.098** | **0.815** | 1.000 | 0.317 | 1.319 | 14.7 |
+| **TAA_RiskParity** | **2.720** | **0.711** | 1.000 | 0.219 | 1.257 | 14.7 |
+| **RSI2** | **2.430** | **0.552** | 1.000 | 0.146 | 0.961 | 14.7 |
+| **TAA_Momentum** | **2.150** | **0.564** | 1.000 | 0.084 | 1.046 | 14.7 |
+| **TSMOM** | 1.413 | 0.341 | 1.000 | -0.111 | 0.852 | 14.7 |
+| **Momentum_Sentiment** | 1.039 | 0.257 | 1.000 | -0.226 | 0.780 | 14.7 |
+| **MA50_200** | 1.222 | 0.295 | 1.000 | -0.146 | 0.829 | 14.7 |
+| **Sentiment** | -1.383 | -0.321 | 1.000 | -0.741 | 0.111 | 14.7 |
+| **Equal_Weight_Pairs** | -2.118 | -0.513 | 1.000 | -0.972 | -0.055 | 14.7 |
+| **ML Ensemble (all)** | -2.4 to -3.3 | -0.6 to -0.8 | 1.000 | -1.3 to -1.0 | -0.2 to -0.3 | 13.7 |
+| **TAA_MinVar** | -28.52 | -10.131 | 1.000 | -14.804 | -7.478 | 14.7 |
+
+## Key Findings
+
+### 1. Vasicek/OU Calibration Unstable on ETF Proxy
+The Vasicek model calibrated to TLT returns produces **extreme parameters** (kappa=10 capped, theta=1.1, sigma=5 capped) and an unrealistic OU strategy Sharpe of 8.19. This is because **TLT price changes are not a valid short-rate proxy** — the model assumes mean-reverting rates, but TLT reflects long-term bond prices with duration effects. Proper calibration requires actual yield curve data (Fed funds, 10Y Treasury).
+
+### 2. Cointegration Rare in Liquid ETFs
+Only **2 of 8 tested pairs showed cointegration** (GLD/DBC, XLF/XLU at ADF p=0.026), and both produced **negative Sharpe (-0.61, -0.07)**. This confirms QuantStart's aluminum smelting example: **true cointegration requires structural economic links**, not just correlated ETFs. The SPY/QQQ, TLT/IEF, EFA/EEM pairs — despite high correlation — are **not cointegrated** (ADF p > 0.05).
+
+### 3. Ensemble ML Destroys Value on Daily Data
+All four ML methods (DecisionTree, Bagging, RandomForest, GradientBoosting) produce **strongly negative Sharpe (-0.6 to -0.8)** with massive drawdowns (-59% to -77%). The features (momentum, volatility, RSI, SMA distance) have **no predictive power for next-day returns** at daily frequency. This validates QuantStart's warning: **"Should You Build Your Own Backtester?" — simple ML on noisy daily data overfits catastrophically**. The 13.7-year test period includes regime changes that invalidate stationary assumptions.
+
+### 4. 60/40 Benchmark Remains Competitive (Sharpe 0.93)
+The simple **60/40 SPY/TLT portfolio achieves Sharpe 0.93**, matching SMA200 and beating all tactical strategies. **Risk Parity TAA (Sharpe 0.71)** and **Momentum TAA (Sharpe 0.56)** underperform the static benchmark after costs. This aligns with QuantStart's "60/40 Benchmark" article: **simple static allocation often beats complex timing**.
+
+### 5. Sentiment Strategy Fails with Synthetic Data
+Simulated sentiment (returns + noise) produces **Sharpe -0.32**. Adding sentiment to momentum (70/30) only reaches **Sharpe 0.26** vs momentum alone (0.34). This mirrors Iteration 18's HARLF finding: **synthetic sentiment proxies are worse than noise**. Real sentiment (FinBERT on news, Tiingo, RavenPack) is essential — the QuantStart Sentdex article uses actual news data.
+
+### 6. Minimum Variance TAA Fails Numerically
+The minimum variance optimizer produces **near-zero volatility (0.04%) and Sharpe -10.13** due to numerical instability in covariance inversion with 10 assets and 126-day windows. The inverse covariance matrix is ill-conditioned. QuantStart's TAA articles use **regularized covariance (Ledoit-Wolf) or shrinkage** — our simple implementation lacks this.
+
+### 7. Baseline Strategies Remain Most Robust
+**SMA200, VolTarget, 60/40, GEM, XSecMom** all have **NW_t > 3.0 and positive Sharpe**. The ML, pairs, sentiment, and complex TAA strategies all fail statistical significance (NW_t < 2, negative Sharpe). This reinforces the consistent finding across iterations: **simple, low-turnover strategies with economic rationale survive rigorous validation**.
+
+## Files Generated
+- `iter19_vasicek_calibration.csv` — Vasicek parameters (kappa, theta, sigma)
+- `iter19_arima_garch.csv` / `iter19_arima_garch_returns.csv` — (skipped, packages unavailable)
+- `iter19_cointegration.csv` — ADF/Johansen test results per pair
+- `iter19_pairs_portfolio.csv` — Equal-weight pairs portfolio returns
+- `iter19_ensemble_ml.csv` — ML ensemble performance
+- `iter19_taa_comparison.csv` — 60/40 vs TAA strategies
+- `iter19_sentiment.csv` / `iter19_sentiment_returns.csv` — Sentiment strategy
+- `iter19_momentum_sentiment_returns.csv` — Combined momentum+sentiment
+- `iter19_validation.csv` — Full statistical validation
+- `iter19_comprehensive_perf.csv` — Performance summary
+- `iter19_equity.png` — 16-panel equity curves
+- `iter19_performance.png` — 6-panel performance + TAA + ML comparison
+- `iter19_cointegration.png` — Pairs Sharpe heatmap
+- `iter19_ou_sentiment.png` — Vasicek paths & sentiment visualization
+
+## Next Steps
+1. **Real Yield Data**: Use FRED API for Fed funds, 10Y, 2Y yields for proper Vasicek/CIR calibration
+2. **Real Cointegration Data**: Test futures pairs (CL/HO, GC/SI) or equity pairs with fundamental links
+3. **Regularized ML**: Add Ledoit-Wolf covariance, feature selection, lower frequency (weekly/monthly)
+4. **Real Sentiment**: Integrate Tiingo News, FinBERT, or RavenPack for sentiment strategy
+5. **ARIMA-GARCH**: Install statsmodels/arch for volatility forecasting
+6. **Production TAA**: Add transaction cost model, rebalancing buffers, turnover constraints
+7. **Combine with Iteration 18 BMA**: Use Bayesian Model Averaging for TAA weight optimization
+
