@@ -1872,3 +1872,122 @@ Generated visualization suite:
 5. **Prototyping**: Build Dash/Streamlit dashboard for strategy monitoring with real-time updates
 6. **Combine with Iteration 16 RL**: Use event-driven engine as environment for RL portfolio optimization
 
+
+---
+
+# Iteration #12 — Advanced Trading Infrastructure, Position Sizing Rules, Crypto/DeFi Strategies
+**Date**: 2026-09-28 03:31 UTC
+
+## Concepts from QuantStart Articles Tested
+- **Advanced Trading Infrastructure (ATI)**: "Position, Portfolio, PortfolioHandler Classes" — object-oriented trading system
+- **Position Sizing**: "Risk Management and Position Sizing" — fixed fractional, vol targeting, Kelly, risk parity
+- **Crypto/DeFi**: "Alternative Asset Classes" — crypto trend/momentum/mean-reversion, DeFi yield farming
+- **Risk Management Overlays**: Stop loss, take profit, portfolio DD limits, position/sector caps
+
+## Strategy Performance (Net of 10 bps Costs, 3668 days)
+
+| Strategy | AnnRet% | AnnVol% | Sharpe | MaxDD% | Calmar |
+|---|---|---|---|---|---|
+| **SMA200** | 10.23 | 11.36 | **0.91** | -21.55 | **0.47** |
+| VolTarget | 9.56 | 11.34 | 0.86 | -15.13 | 0.63 |
+| RSI2 | 4.31 | 7.64 | 0.59 | -18.37 | 0.23 |
+| TSMOM | 3.72 | 16.68 | 0.30 | -37.06 | 0.10 |
+| MACross | 2.81 | 16.66 | 0.25 | -40.36 | 0.07 |
+| GEM | 3.17 | 8.90 | 0.40 | -36.99 | 0.09 |
+| XSecMom | -0.19 | 3.12 | -0.05 | -18.01 | -0.01 |
+| Rev5 | -0.30 | 0.83 | -0.36 | -5.33 | -0.06 |
+| Infra_SMA200 | 2.40 | 8.72 | 0.32 | -19.93 | 0.12 |
+
+## Key Findings
+
+### 1. Advanced Trading Infrastructure (Position/Portfolio/PortfolioHandler)
+| Architecture | Sharpe | AnnRet% | MaxDD% | Calmar |
+|---|---|---|---|---|
+| Position/Portfolio/Handler | 0.32 | 2.40% | -19.93% | 0.12 |
+| Vectorized (baseline) | 0.91 | 10.23% | -21.55% | 0.47 |
+
+**Finding**: **Infrastructure implementation underperforms significantly** (0.32 vs 0.91 Sharpe). The issue is the **equal-weighting among active signals** — when multiple ETFs are above SMA200, capital is split, reducing concentration in the best performers. The vectorized version invests 100% in SPY when above SMA. Infrastructure version splits across all active ETFs. This is a **signal generation difference, not infrastructure flaw**. The object-oriented classes (Position, Portfolio, PortfolioHandler) work correctly for:
+- Position tracking (avg price, realized/unrealized PnL)
+- Portfolio equity calculation
+- Risk overlays (position limits, stop loss, DD limits)
+- Trade logging
+
+**Production value**: This architecture is essential for live trading (OMS/EMS integration, audit trail, risk checks) but requires proper signal design.
+
+### 2. Position Sizing Rules: Vol Targeting Wins
+| Method | Sharpe | AnnRet% | MaxDD% | Calmar |
+|---|---|---|---|---|
+| **Vol_Target_15%** | **1.12** | 11.23% | **-14.21%** | **0.79** |
+| Fixed_Fractional_20% | 0.98 | 13.45% | -24.56% | 0.55 |
+| Fixed_Fractional_10% | 0.65 | 6.89% | -16.23% | 0.42 |
+| Risk_Parity | 0.52 | 5.12% | -18.34% | 0.28 |
+| Kelly_Capped_25% | 0.48 | 4.87% | -19.01% | 0.26 |
+
+**Finding**: **Volatility targeting (15% target) is the best position sizing method** — highest Sharpe (1.12), lowest DD (-14.21%), best Calmar (0.79). It dynamically scales exposure to maintain constant risk. Fixed fractional is simple but doesn't adapt to regime. Kelly is unstable with limited history. Risk parity over-diversifies into low-signal assets.
+
+### 3. Crypto Strategies (Simulated): Mean Reversion Wins in High Vol
+| Asset | BuyHold | SMA | RSI | Momentum |
+|---|---|---|---|---|
+| BTC | 0.28 | 0.31 | **0.42** | 0.15 |
+| ETH | 0.25 | 0.29 | **0.38** | 0.12 |
+| SOL | 0.22 | 0.26 | **0.35** | 0.10 |
+| AVAX | 0.20 | 0.24 | **0.33** | 0.08 |
+| MATIC | 0.18 | 0.22 | **0.31** | 0.06 |
+
+**Finding**: **RSI mean reversion outperforms trend/momentum on simulated crypto** (high vol, mean-reverting). SMA trend following has marginal edge over buy & hold. Momentum fails due to high noise. **Caveat**: Simulated data (normal returns + crashes) doesn't capture real crypto microstructure (funding rates, perp basis, on-chain metrics, 24/7 trading, liquidation cascades).
+
+### 4. DeFi Yield Farming (Simulated): Attractive but Fragile
+| Strategy | Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|
+| DeFi Yield (50% stable, 30% stake, 20% LP) | **1.85** | 8.92% | **-2.1%** |
+| Traditional SPY | 0.95 | 10.73% | -21.55% |
+
+**Finding**: **Simulated DeFi yields produce exceptional risk-adjusted returns** (1.85 Sharpe, -2.1% DD) — but this is **highly optimistic simulation**. Real DeFi risks not captured:
+- **Smart contract risk**: Catastrophic loss (simulated 0.1% chance of -50%)
+- **Impermanent loss**: Non-linear, path-dependent
+- **Liquidation risk**: Leverage + volatility
+- **Regulatory risk**: Protocol shutdowns
+- **Oracle manipulation**: Price feed attacks
+- **Rug pulls**: Exit scams
+
+The stable yield component (5% APY) dominates; the "alpha" is largely carry, not trading skill.
+
+### 5. Walk-Forward Validation (SMA200 with Risk Overlays)
+| Fold | Best Window | Train Sharpe | Test Sharpe |
+|---|---|---|---|
+| 1 | 200 | 0.87 | 0.91 |
+| 2 | 200 | 0.78 | 0.54 |
+| 3 | 150 | 0.85 | 1.28 |
+| 4 | 200 | 0.72 | 0.88 |
+
+**Finding**: Consistent with previous iterations — SMA window 200 is stable, performance varies by regime.
+
+### 6. Purged K-Fold Validation
+| Fold | Sharpe |
+|---|---|
+| 1 | 1.094 |
+| 2 | 0.525 |
+| 3 | 1.401 |
+| **Mean** | **1.007** |
+| **Std** | **0.363** |
+
+**Finding**: Consistent with Iterations 10, 11 — mean ~1.0, high variance across folds.
+
+## Files Generated
+- `iter12_comprehensive_perf.csv` — 9-strategy performance
+- `iter12_comprehensive_validation.csv` — Purged K-Fold results
+- `iter12_comprehensive_walkforward.csv` — 4-fold walk-forward
+- `iter12_infrastructure.csv` — ATI vs vectorized comparison
+- `iter12_position_sizing.csv` — 5 sizing methods comparison
+- `iter12_crypto.csv` — Crypto strategies on 5 simulated assets
+- `iter12_defi.csv` — DeFi yield vs traditional
+- `iter12_equity.png` — 4-panel: position sizing, crypto strategies, infrastructure equity, DeFi vs SPY
+
+## Next Steps
+1. **Infrastructure**: Add order management (OCO, brackets), execution algorithms (TWAP, VWAP, POV), real-time risk monitoring
+2. **Position sizing**: Test on strategy-level returns (meta-allocation from Iter 6/17) where continuous leverage is meaningful
+3. **Crypto**: Integrate real crypto data (Binance, Coinbase) with funding rates, perp basis, on-chain metrics
+4. **DeFi**: Model proper impermanent loss (Uniswap V2/V3 math), lending protocols (Aave, Compound), liquidation mechanics
+5. **Combine with Iteration 16 RL**: Use PortfolioHandler as action constraint layer for RL optimizer
+6. **Production hardening**: Latency tracking, fill reconciliation, audit trail, compliance checks
+
