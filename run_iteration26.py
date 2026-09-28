@@ -200,7 +200,7 @@ def tail_hedge_overlay(base_weights, returns, hedge_ratio=0.2, tail_threshold=-0
     
     for i in range(1, len(hedged_weights)):
         if portfolio_ret.iloc[i-1] < tail_threshold and port_vol.iloc[i-1] > 0:
-            current_w = hedged_weights.iloc[i].values
+            current_w = hedged_weights.iloc[i].values.copy()
             hedge_amount = hedge_ratio
             
             risky_mask = ~hedged_weights.columns.isin(defensive)
