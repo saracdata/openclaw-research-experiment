@@ -9,7 +9,9 @@ cd "$PROJECT_DIR" || exit 1
 
 EXTRA_INSTRUCTIONS="$@"
 
-EXTRA_PROMPT="" if [ -n "$EXTRA_INSTRUCTIONS" ]; then EXTRA_PROMPT=" Extra focus for this run: $EXTRA_INSTRUCTIONS"
+EXTRA_PROMPT="" 
+if [ -n "$EXTRA_INSTRUCTIONS" ]; then 
+    EXTRA_PROMPT=" Extra focus for this run: $EXTRA_INSTRUCTIONS"
 fi
 
 
