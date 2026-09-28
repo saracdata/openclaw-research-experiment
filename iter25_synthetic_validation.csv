@@ -1,0 +1,3 @@
+,name,AnnRet%,AnnVol%,Sharpe,MaxDD%,Calmar,days
+Vasicek_MR,Vasicek_MR_Synthetic,-94.14,97.03,-2.41,-100.0,-0.94,2520
+Regime_Conditional,Regime_Conditional_Synthetic,19.92,14.86,1.3,-25.58,0.78,2520
