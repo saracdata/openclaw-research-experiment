@@ -167,14 +167,17 @@ def fit_hmm_regimes(features, n_states=3):
 def regime_conditional_portfolio(returns, regimes, probs, lookback=60):
     """Optimize portfolio weights conditional on regime"""
     n_states = probs.shape[1]
-    weights = pd.DataFrame(0.0, index=returns.index, columns=returns.columns)
+    # Align: probs/regimes are from signature features starting at window (60)
+    # So they match returns.iloc[window:]
+    aligned_returns = returns.iloc[-len(probs):]
+    weights = pd.DataFrame(0.0, index=aligned_returns.index, columns=returns.columns)
     
     for state in range(n_states):
         # Find periods where this regime dominates
         state_mask = probs[:, state] > 0.5
         if state_mask.sum() < lookback:
             continue
-        state_returns = returns.iloc[state_mask]
+        state_returns = aligned_returns.iloc[state_mask]
         if len(state_returns) < lookback:
             continue
         
@@ -193,12 +196,13 @@ def regime_conditional_portfolio(returns, regimes, probs, lookback=60):
             w = np.ones(len(mu)) / len(mu)
         
         # Apply weights during this regime
-        state_dates = returns.index[state_mask]
+        state_dates = aligned_returns.index[state_mask]
         for d in state_dates:
             weights.loc[d] = w
     
-    # Forward fill
+    # Forward fill and reindex to full returns
     weights = weights.ffill().fillna(1/len(returns.columns))
+    weights = weights.reindex(returns.index).ffill().fillna(1/len(returns.columns))
     return weights
 
 # ============================================================
@@ -216,7 +220,8 @@ regimes, probs, hmm_model, scaler = fit_hmm_regimes(sig_features, n_states=3)
 print("Computing regime-conditional portfolio...")
 regime_weights = regime_conditional_portfolio(returns, regimes, probs, lookback=60)
 
-# Combine: Vasicek MR signals * Regime weights
+# Align mr_signals with regime_weights (mr_signals starts at window=60)
+# Both should now be aligned to full returns index
 combined_pos = mr_signals * regime_weights
 combined_pos = combined_pos.clip(-1, 1)
 
@@ -224,6 +229,9 @@ combined_pos = combined_pos.clip(-1, 1)
 # 8. BACKTESTING WITH TRANSACTION COSTS
 # ============================================================
 cost_bps = 10
+
+# For backtesting, use aligned returns (from window onwards)
+aligned_returns = returns.iloc[-len(combined_pos):]
 
 # Individual strategy backtests
 strategies = {
@@ -236,9 +244,9 @@ strategies = {
 results = {}
 for name, pos in strategies.items():
     if isinstance(pos, pd.DataFrame):
-        strat_ret = backtest(pos, returns, cost_bps=cost_bps)
+        strat_ret = backtest(pos, aligned_returns, cost_bps=cost_bps)
     else:
-        strat_ret = backtest(pos, returns['SPY'], cost_bps=cost_bps)
+        strat_ret = backtest(pos, aligned_returns['SPY'], cost_bps=cost_bps)
     results[name] = perf(strat_ret, name)
     print(f"{name}: {results[name]}")
 
@@ -272,16 +280,17 @@ def bootstrap_sharpe(returns, n_boot=1000):
         boots.append(sharpe(boot_ret))
     return np.array(boots)
 
-# Run purged CV on Combined strategy
-n = len(combined_pos)
+# Run purged CV on Combined strategy (use aligned data)
+aligned_pos = combined_pos
+n = len(aligned_pos)
 folds = purged_kfold_indices(n, n_splits=5, embargo_pct=0.01)
 
 cv_sharpes = []
 for train_idx, test_idx in folds:
-    train_returns = returns.iloc[train_idx]
-    test_returns = returns.iloc[test_idx]
-    train_pos = combined_pos.iloc[train_idx]
-    test_pos = combined_pos.iloc[test_idx]
+    train_returns = aligned_returns.iloc[train_idx]
+    test_returns = aligned_returns.iloc[test_idx]
+    train_pos = aligned_pos.iloc[train_idx]
+    test_pos = aligned_pos.iloc[test_idx]
     
     # Recalibrate on train (simplified: use same positions)
     strat_train = backtest(train_pos, train_returns, cost_bps=cost_bps)
@@ -292,7 +301,7 @@ cv_sharpes = np.array(cv_sharpes)
 print(f"CV Sharpe: mean={cv_sharpes.mean():.4f}, std={cv_sharpes.std():.4f}")
 
 # Bootstrap on full Combined
-combined_ret = backtest(combined_pos, returns, cost_bps=cost_bps)
+combined_ret = backtest(combined_pos, aligned_returns, cost_bps=cost_bps)
 boot_sharpes = bootstrap_sharpe(combined_ret, n_boot=1000)
 print(f"Bootstrap Sharpe: mean={boot_sharpes.mean():.4f}, std={boot_sharpes.std():.4f}")
 
@@ -320,12 +329,12 @@ synth_strategies = {}
 for name, pos_fn in [('Vasicek_MR', vasicek_signal), ('Regime_Conditional', regime_conditional_portfolio)]:
     if name == 'Vasicek_MR':
         synth_pos = pos_fn(synth_returns, window=60)
+        synth_ret = backtest(synth_pos, synth_returns, cost_bps=cost_bps)
     else:
         synth_sig = signature_regime_features(synth_returns, window=60, level=2)
         synth_regimes, synth_probs, _, _ = fit_hmm_regimes(synth_sig, n_states=3)
         synth_pos = pos_fn(synth_returns, synth_regimes, synth_probs, lookback=60)
-    
-    synth_ret = backtest(synth_pos, synth_returns, cost_bps=cost_bps)
+        synth_ret = backtest(synth_pos, synth_returns, cost_bps=cost_bps)
     synth_strategies[name] = perf(synth_ret, f"{name}_Synthetic")
     print(f"{name}_Synthetic: {synth_strategies[name]}")
 
@@ -333,10 +342,12 @@ for name, pos_fn in [('Vasicek_MR', vasicek_signal), ('Regime_Conditional', regi
 # 12. REGIME CHARACTERIZATION
 # ============================================================
 regime_chars = []
+# regimes aligns with sig_features index = returns.index[window:]
+aligned_returns_reg = returns.iloc[-len(regimes):]
 for s in range(3):
     mask = regimes == s
     if mask.sum() > 0:
-        regime_ret = returns[mask].mean(axis=1)
+        regime_ret = aligned_returns_reg[mask].mean(axis=1)
         regime_chars.append({
             'regime': s,
             'frequency': mask.mean(),
@@ -373,6 +384,7 @@ regime_df.to_csv('iter24_signature_regimes.csv')
 
 # Returns for plotting
 combined_ret.to_csv('iter24_combined_returns.csv')
+aligned_returns.to_csv('iter24_aligned_returns.csv')
 
 # Vasicek params
 vasicek_params = []
@@ -389,9 +401,9 @@ fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 # Equity curves
 for name, pos in strategies.items():
     if isinstance(pos, pd.DataFrame):
-        ret = backtest(pos, returns, cost_bps=cost_bps)
+        ret = backtest(pos, aligned_returns, cost_bps=cost_bps)
     else:
-        ret = backtest(pos, returns['SPY'], cost_bps=cost_bps)
+        ret = backtest(pos, aligned_returns['SPY'], cost_bps=cost_bps)
     cum = (1 + ret).cumprod()
     axes[0, 0].plot(cum.index, cum.values, label=name, linewidth=1)
 axes[0, 0].set_title('Equity Curves (Net of Costs)')
@@ -399,8 +411,9 @@ axes[0, 0].legend()
 axes[0, 0].grid(True, alpha=0.3)
 
 # Regime probabilities
+sig_dates = sig_features.index
 for s in range(3):
-    axes[0, 1].plot(probs[:, s], label=f'Regime {s}', alpha=0.7)
+    axes[0, 1].plot(sig_dates, probs[:, s], label=f'Regime {s}', alpha=0.7)
 axes[0, 1].set_title('HMM Regime Probabilities (Signature Features)')
 axes[0, 1].legend()
 axes[0, 1].grid(True, alpha=0.3)
