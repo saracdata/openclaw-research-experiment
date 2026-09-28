@@ -1,25 +1,25 @@
 ,mean,std
-Buy&Hold_gbm,-0.15,0.24
-Buy&Hold_ou,-0.1,0.24
-Buy&Hold_jump,-0.02,0.26
-SMA200_gbm,0.69,0.26
+Buy&Hold_gbm,-0.02,0.26
+Buy&Hold_ou,0.0,0.25
+Buy&Hold_jump,-0.13,0.25
+SMA200_gbm,0.79,0.23
 SMA200_ou,,
-SMA200_jump,0.45,0.26
-60/40_gbm,-0.66,0.27
+SMA200_jump,0.35,0.25
+60/40_gbm,-0.77,0.23
 60/40_ou,0.0,0.0
-60/40_jump,-0.7,0.22
-GEM_gbm,0.45,0.22
+60/40_jump,-0.66,0.24
+GEM_gbm,0.51,0.24
 GEM_ou,,
-GEM_jump,0.19,0.25
-XSec Mom_gbm,0.63,0.29
+GEM_jump,0.17,0.23
+XSec Mom_gbm,0.61,0.31
 XSec Mom_ou,,
-XSec Mom_jump,0.5,0.34
-TSMOM+RP_gbm,0.29,0.24
+XSec Mom_jump,0.46,0.35
+TSMOM+RP_gbm,0.27,0.3
 TSMOM+RP_ou,,
-TSMOM+RP_jump,-0.1,0.21
-Vol Target_gbm,0.6,0.26
+TSMOM+RP_jump,-0.12,0.25
+Vol Target_gbm,0.67,0.25
 Vol Target_ou,,
-Vol Target_jump,0.41,0.29
-Regime-Aware_gbm,0.73,0.27
+Vol Target_jump,0.33,0.19
+Regime-Aware_gbm,0.71,0.27
 Regime-Aware_ou,,
-Regime-Aware_jump,0.39,0.25
+Regime-Aware_jump,0.43,0.27
