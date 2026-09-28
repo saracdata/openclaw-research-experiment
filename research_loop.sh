@@ -7,6 +7,12 @@ PROJECT_DIR="/root/quant"
 
 cd "$PROJECT_DIR" || exit 1
 
+EXTRA_INSTRUCTIONS="$@"
+
+EXTRA_PROMPT="" if [ -n "$EXTRA_INSTRUCTIONS" ]; then EXTRA_PROMPT=" Extra focus for this run: $EXTRA_INSTRUCTIONS"
+fi
+
+
 
 
 MAX_HOURS=24
@@ -39,7 +45,7 @@ while [ $(date +%s) -lt $END_TIME ]; do
 
 
 
-    PROMPT="Perform iteration #$ITERATION of quantitative research on https://www.quantstart.com/articles/Beginners-Guide-to-Quantitative-Trading/. Read the concepts, design new backtesting experiments or strategy parameters in python, execute the scripts, write all generated csv/png/md outputs to the quant folder, and update REPORT.md with new findings. And visit https://www.quantstart.com/articles/Beginners-Guide-to-Quantitative-Trading/ look at all the https://www.quantstart.com/articles/ for ideas to test and validate too. Also look at the existing directory in quant and see whats already been implemented to avoid dup work, keep making refinements"
+    PROMPT="Perform iteration #$ITERATION of quantitative research on https://www.quantstart.com/articles/Beginners-Guide-to-Quantitative-Trading/. Read the concepts, design new backtesting experiments or strategy parameters in python, execute the scripts, write all generated csv/png/md outputs to the quant folder, and update REPORT.md with new findings. And visit https://www.quantstart.com/articles/Beginners-Guide-to-Quantitative-Trading/ look at all the https://www.quantstart.com/articles/ for ideas to test and validate too. Also look at the existing directory in quant and see whats already been implemented to avoid dup work, keep making refinements. $EXTRA_PROMPT"
 
 
     openclaw agent --local --agent main --model 'openrouter/nvidia/nemotron-3-ultra-550b-a55b:free' --message "$PROMPT"
