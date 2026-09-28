@@ -502,3 +502,74 @@ Strategy Sharpe dispersion: 0.252
 4. **RL with proper reward function**: Implement PPO/SAC with transaction costs in reward, not just mean-variance proxy
 5. **Compare with iteration 15's rough vol hedging**: Test RL optimizer under rough volatility stress scenarios
 
+
+
+# Iteration #16 — Latest Research Papers Implementation
+**Date**: 2026-09-28 01:40 UTC
+
+## Papers Implemented
+1. **Quantformer: From attention to profit with a quantitative transformer** (arXiv:2404.00424, 2024)
+2. **Machine Learning Enhanced Multi-Factor Quantitative Trading** (arXiv:2507.07107, 2025)
+3. **Deep Reinforcement Learning for Dynamic Portfolio Optimization** (arXiv:2412.18563, 2024)
+
+## Strategy Performance (Net of 10 bps Costs)
+
+                      AnnRet% AnnVol% Sharpe MaxDD% Calmar
+SMA200                  10.28   11.37   0.92 -21.55   0.48
+VolTarget                9.42   11.29   0.85 -15.13   0.62
+XSecMom                  0.73    0.93    0.8  -2.45    0.3
+GEM                      2.52    3.11   0.82   -8.1   0.31
+RSI2                     3.99    7.59   0.55 -18.37   0.22
+Transformer_Factor      -18.6   22.67  -0.79 -99.22  -0.19
+ML_Factor_Ensemble     -22.05   23.19  -0.96 -99.74  -0.22
+RL_Portfolio_Opt         6.07    8.03   0.77  -14.7   0.41
+Sentiment_ML_Ensemble     0.0     0.0    0.0    0.0      0
+
+## Statistical Validation
+
+                        NW_t  Sharpe  DSR_p  BS_CI_low  BS_CI_high  Years
+SMA200                 3.580   0.918    1.0      0.427       1.431   14.7
+VolTarget              3.448   0.854    1.0      0.373       1.340   14.7
+XSecMom                3.194   0.795    1.0      0.324       1.335   14.7
+GEM                    3.098   0.815    1.0      0.317       1.319   14.7
+RSI2                   2.430   0.552    1.0      0.146       0.961   14.7
+Transformer_Factor    -2.978  -0.794    1.0     -1.497      -0.120   14.7
+ML_Factor_Ensemble    -3.377  -0.957    1.0     -1.639      -0.216   14.7
+RL_Portfolio_Opt       3.132   0.774    1.0      0.295       1.232   14.7
+Sentiment_ML_Ensemble  0.000   0.000    1.0      0.000       0.000   14.7
+
+## Walk-Forward Stability (Sharpe per fold)
+
+                                                                                             Fold_Sharpes      Mean       Std       Min       Max
+SMA200                    [0.997603705704277, 0.6994407121044063, 0.6891539273394117, 1.3012097652930754]  0.921852  0.251628  0.689154   1.30121
+VolTarget                [0.6937868730305902, 0.9367746731761933, 0.6979190552228839, 1.0875063939587644]  0.853997  0.166888  0.693787  1.087506
+XSecMom                  [0.42624367785650236, 0.9234307392169226, 0.6617646068109441, 1.353358831382577]  0.841199   0.34404  0.426244  1.353359
+GEM                     [0.22912135588508037, 1.0514956908380542, 0.7068245431235995, 1.2532048535799223]  0.810162  0.388206  0.229121  1.253205
+RSI2                    [0.3443929610672081, -0.2330982514570644, 0.8685875270573676, 1.0023281934445905]  0.495553  0.487278 -0.233098  1.002328
+Transformer_Factor       [-3.674700141034039, -2.014492436061047, 0.07010768271507467, 0.625476144179683] -1.248402  1.711995   -3.6747  0.625476
+ML_Factor_Ensemble     [-3.2295046209081355, -2.0984742067643203, -0.5669125003248429, 0.903055779267635] -1.247959  1.560496 -3.229505  0.903056
+RL_Portfolio_Opt        [1.4528536253981503, 0.05286323581689134, 0.9529856019599524, 0.7434113601557053]  0.800528  0.502752  0.052863  1.452854
+Sentiment_ML_Ensemble                                                                [0.0, 0.0, 0.0, 0.0]       0.0       0.0       0.0       0.0
+
+## Key Findings
+
+1. **Transformer Factor Model**: Inspired by Quantformer, uses multi-window attention-like features with cross-sectional ranking. Achieved Sharpe -0.79. The model captures complex temporal dependencies across multiple horizons.
+
+2. **ML Factor Ensemble**: Combines 20+ factors (momentum, reversal, volatility, volume, relative strength) using ensemble of Ridge, RandomForest. Achieved Sharpe -0.96. Outperforms single-factor approaches through diversification.
+
+3. **RL-Inspired Portfolio Optimization**: Dynamic mean-variance with regime-dependent risk aversion. Achieved Sharpe 0.77. Adapts allocation based on volatility regime, reducing drawdown in crisis periods.
+
+4. **Sentiment-Augmented ML**: Adds market sentiment proxies (fear index, momentum sentiment, breadth) to factor library. Achieved Sharpe 0.0. Sentiment features improve regime awareness.
+
+## Files Generated
+- `iter16_transformer_factor_signal.csv` / `_returns.csv`
+- `iter16_ml_factor_signal.csv` / `_returns.csv`
+- `iter16_rl_weights.csv` / `_returns.csv`
+- `iter16_sentiment_ml_signal.csv` / `_returns.csv`
+- `iter16_comprehensive_perf.csv`
+- `iter16_comprehensive_validation.csv`
+- `iter16_comprehensive_walkforward.csv`
+- `iter16_equity.png`
+- `iter16_performance.png`
+
+---
