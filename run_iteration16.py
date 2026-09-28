@@ -45,34 +45,22 @@ spy_ret = spy.pct_change().dropna()
 print("\n=== E1: Transformer-inspired Factor Model ===")
 
 def create_transformer_features(prices):
-    """
-    Create features inspired by Quantformer paper:
-    - Multi-head attention style: multiple lookback windows
-    - Positional encoding: time-based features
-    - Cross-sectional normalization
-    """
     rets = prices.pct_change().dropna()
     features = {}
     
-    # Multiple lookback windows (multi-head attention analog)
     for w in [5, 10, 21, 63, 126, 252]:
-        # Momentum features
         mom = prices / prices.shift(w) - 1
         features[f'mom_{w}'] = mom.rank(axis=1, pct=True)
         
-        # Volatility features
         vol = rets.rolling(w).std() * np.sqrt(252)
-        features[f'vol_{w}'] = (-vol).rank(axis=1, pct=True)  # Low vol = high score
+        features[f'vol_{w}'] = (-vol).rank(axis=1, pct=True)
         
-        # Mean reversion features
         mean_ret = rets.rolling(w).mean()
         features[f'meanret_{w}'] = (-mean_ret).rank(axis=1, pct=True)
         
-        # Sharpe-like features
         sharpe = mom / (vol + 1e-8)
         features[f'sharpe_{w}'] = sharpe.rank(axis=1, pct=True)
     
-    # Positional encoding: time-based cyclical features
     dates = prices.index
     features['sin_month'] = pd.DataFrame(
         np.sin(2 * np.pi * dates.month / 12), 
@@ -86,14 +74,9 @@ def create_transformer_features(prices):
     return features
 
 def transformer_factor_signal(features, rets, train_window=252, pred_horizon=21):
-    """
-    Simple transformer-inspired factor: attention-weighted combination of features
-    predicting forward returns
-    """
     feature_names = list(features.keys())
     n_features = len(feature_names)
     
-    # Align all features
     common_idx = rets.index
     for key in feature_names:
         common_idx = common_idx.intersection(features[key].index)
@@ -102,23 +85,19 @@ def transformer_factor_signal(features, rets, train_window=252, pred_horizon=21)
     for key in feature_names:
         X_list.append(features[key].loc[common_idx].values)
     
-    # Stack features: (n_samples, n_assets, n_features)
     X = np.stack(X_list, axis=2).astype(float)
     y = rets.loc[common_idx].shift(-pred_horizon).values.astype(float)
     
-    # Rolling training with ridge regression (simplified attention)
     from sklearn.linear_model import Ridge
     
     n_samples, n_assets, _ = X.shape
     signals = np.zeros((n_samples, n_assets))
     
-    # Train on rolling window
+    # Start training after we have enough data
     for i in range(train_window, n_samples - pred_horizon):
-        # Training data
         X_train = X[i-train_window:i].reshape(-1, n_features)
         y_train = y[i-train_window:i].flatten()
         
-        # Remove NaN
         mask = ~(pd.isna(y_train) | pd.isna(X_train).any(axis=1))
         if mask.sum() < 50:
             continue
@@ -126,11 +105,9 @@ def transformer_factor_signal(features, rets, train_window=252, pred_horizon=21)
         X_train = X_train[mask]
         y_train = y_train[mask]
         
-        # Ridge regression (attention-like weighted combination)
         model = Ridge(alpha=1.0)
         model.fit(X_train, y_train)
         
-        # Predict on current features
         X_curr = X[i].reshape(n_assets, n_features)
         mask_curr = ~pd.isna(X_curr).any(axis=1)
         if mask_curr.sum() == 0:
@@ -138,20 +115,16 @@ def transformer_factor_signal(features, rets, train_window=252, pred_horizon=21)
         
         pred = np.zeros(n_assets)
         pred[mask_curr] = model.predict(X_curr[mask_curr])
-        
-        # Rank-based signal (cross-sectional)
         pred_rank = pd.Series(pred).rank(pct=True).values
-        signals[i] = pred_rank - 0.5  # Centered around 0
+        signals[i] = pred_rank - 0.5
     
     return pd.DataFrame(signals, index=common_idx, columns=prices.columns)
 
-# Create features and run
 print("Creating transformer features...")
 features = create_transformer_features(prices)
 print("Training transformer factor...")
 tf_signal = transformer_factor_signal(features, returns)
 
-# Backtest
 tf_signal_aligned = tf_signal.reindex(returns.index).fillna(0)
 tf_returns = (returns * tf_signal_aligned.values).sum(axis=1)
 tf_perf = perf(tf_returns.dropna(), 'Transformer_Factor')
@@ -159,45 +132,37 @@ tf_perf = perf(tf_returns.dropna(), 'Transformer_Factor')
 print(f"Transformer Factor: {tf_perf}")
 print(f"  Signal non-zero count: {(tf_signal_aligned != 0).sum().sum()}")
 
-# Save
 tf_signal.to_csv('/root/quant/iter16_transformer_factor_signal.csv')
 tf_returns.to_csv('/root/quant/iter16_transformer_factor_returns.csv')
 
 # ============================================================
-# E2: MULTI-FACTOR ML ENSEMBLE (ML-Enhanced Multi-Factor)
+# E2: MULTI-FACTOR ML ENSEMBLE
 # ============================================================
 print("\n=== E2: Multi-Factor ML Ensemble ===")
 
 def build_factor_library(prices):
-    """Build comprehensive factor library (Alpha101-inspired)"""
     rets = prices.pct_change().dropna()
     factors = {}
     
-    # Momentum factors
     for w in [21, 63, 126, 252]:
         factors[f'mom_{w}'] = (prices / prices.shift(w) - 1).rank(axis=1, pct=True)
     
-    # Reversal factors
     for w in [5, 10, 21]:
         factors[f'rev_{w}'] = (-prices.pct_change(w)).rank(axis=1, pct=True)
     
-    # Volatility factors
     for w in [21, 63, 126]:
         vol = rets.rolling(w).std() * np.sqrt(252)
         factors[f'vol_{w}'] = (-vol).rank(axis=1, pct=True)
     
-    # Volume/turnover factors
     for w in [21, 63]:
         turnover = prices.pct_change().abs().rolling(w).mean()
         factors[f'turn_{w}'] = (-turnover).rank(axis=1, pct=True)
     
-    # Cross-sectional relative strength
     for w in [63, 126]:
         rs = prices / prices.shift(w) - 1
         market_rs = rs.mean(axis=1)
         factors[f'rel_str_{w}'] = rs.sub(market_rs, axis=0).rank(axis=1, pct=True)
     
-    # Seasonality
     dates = prices.index
     factors['month'] = pd.DataFrame(
         dates.month, index=dates, columns=prices.columns
@@ -206,10 +171,7 @@ def build_factor_library(prices):
     return factors
 
 def ml_factor_ensemble(factors, returns, train_window=252, pred_horizon=21):
-    """
-    ML ensemble for factor combination using sklearn
-    """
-    from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+    from sklearn.ensemble import RandomForestRegressor
     from sklearn.linear_model import Ridge
     
     factor_names = list(factors.keys())
@@ -217,16 +179,21 @@ def ml_factor_ensemble(factors, returns, train_window=252, pred_horizon=21):
     for key in factor_names:
         common_idx = common_idx.intersection(factors[key].index)
     
+    # Align all to common index AND columns
+    aligned_factors = {}
+    for key in factor_names:
+        df = factors[key].loc[common_idx]
+        aligned_factors[key] = df
+    
     X_list = []
     for key in factor_names:
-        X_list.append(factors[key].loc[common_idx].values)
+        X_list.append(aligned_factors[key].values)
     X = np.stack(X_list, axis=2).astype(float)
     y = returns.loc[common_idx].shift(-pred_horizon).values.astype(float)
     
     n_samples, n_assets, n_factors = X.shape
     signals = np.zeros((n_samples, n_assets))
     
-    # Use simpler ensemble (Ridge + RandomForest)
     models = [
         ('ridge', Ridge(alpha=1.0)),
         ('rf', RandomForestRegressor(n_estimators=30, max_depth=4, random_state=42, n_jobs=-1)),
@@ -248,7 +215,6 @@ def ml_factor_ensemble(factors, returns, train_window=252, pred_horizon=21):
         if mask_curr.sum() == 0:
             continue
         
-        # Ensemble predictions
         preds = np.zeros((len(models), n_assets))
         for j, (name, model) in enumerate(models):
             try:
@@ -259,7 +225,6 @@ def ml_factor_ensemble(factors, returns, train_window=252, pred_horizon=21):
             except:
                 preds[j] = 0
         
-        # Average ensemble
         ensemble_pred = preds.mean(axis=0)
         ensemble_rank = pd.Series(ensemble_pred).rank(pct=True).values
         signals[i] = ensemble_rank - 0.5
@@ -282,43 +247,33 @@ ml_signal.to_csv('/root/quant/iter16_ml_factor_signal.csv')
 ml_returns.to_csv('/root/quant/iter16_ml_factor_returns.csv')
 
 # ============================================================
-# E3: DEEP RL-INSPIRED PORTFOLIO OPTIMIZATION
+# E3: RL-INSPIRED PORTFOLIO OPTIMIZATION
 # ============================================================
 print("\n=== E3: RL-Inspired Dynamic Portfolio Optimization ===")
 
 def rl_portfolio_optimization(returns, lookback=252, rebalance_freq=21):
-    """
-    RL-inspired dynamic portfolio optimization using online mean-variance with regime switching
-    """
     n_assets = returns.shape[1]
     n_samples = len(returns)
     
-    # Precompute rolling stats
     roll_mean = returns.rolling(lookback).mean()
     roll_vol = returns.rolling(lookback).std() * np.sqrt(252)
     
-    # Precompute rolling covariances as list of matrices
     cov_list = []
     for i in range(lookback, n_samples):
         window_data = returns.iloc[i-lookback:i]
         cov = window_data.cov().values
         cov_list.append(cov)
     
-    # Regime indicator (volatility regime)
     mkt_ret = returns.mean(axis=1)
     mkt_vol = mkt_ret.rolling(63).std() * np.sqrt(252)
     vol_regime = (mkt_vol > mkt_vol.rolling(252).median()).astype(float)
     
     weights_history = pd.DataFrame(0.0, index=returns.index, columns=returns.columns)
-    
-    # Initial equal weight
     current_weights = np.ones(n_assets) / n_assets
     
     for idx_i, i in enumerate(range(lookback, n_samples, rebalance_freq)):
-        # Current state
         mu = roll_mean.iloc[i].values
         
-        # Get covariance
         if idx_i < len(cov_list):
             cov = cov_list[idx_i]
         else:
@@ -326,13 +281,9 @@ def rl_portfolio_optimization(returns, lookback=252, rebalance_freq=21):
         
         regime = vol_regime.iloc[i] if i < len(vol_regime) else 0
         
-        # Regularize covariance
         cov = cov + np.eye(n_assets) * 1e-4
-        
-        # Risk aversion based on regime
         risk_aversion = 2.0 + 3.0 * regime
         
-        # Mean-variance optimization
         try:
             inv_cov = np.linalg.inv(cov)
             opt_weights = inv_cov @ mu / risk_aversion
@@ -342,11 +293,9 @@ def rl_portfolio_optimization(returns, lookback=252, rebalance_freq=21):
         except:
             opt_weights = current_weights
         
-        # Smooth transition
         current_weights = 0.7 * current_weights + 0.3 * opt_weights
         current_weights = current_weights / (np.abs(current_weights).sum() + 1e-8)
         
-        # Store weights
         end_idx = min(i + rebalance_freq, n_samples)
         weights_history.iloc[i:end_idx] = current_weights
     
@@ -364,33 +313,25 @@ rl_weights.to_csv('/root/quant/iter16_rl_weights.csv')
 rl_returns.to_csv('/root/quant/iter16_rl_returns.csv')
 
 # ============================================================
-# E4: SENTIMENT-AUGMENTED FACTORS (Quantformer style)
+# E4: SENTIMENT-AUGMENTED FACTORS
 # ============================================================
 print("\n=== E4: Sentiment-Augmented Factors ===")
 
 def sentiment_augmented_factors(prices, returns):
-    """
-    Create sentiment proxies from market data
-    """
     factors = {}
     
-    # Market-wide sentiment proxies
     mkt_ret = returns.mean(axis=1)
     mkt_vol = mkt_ret.rolling(21).std() * np.sqrt(252)
     mkt_mom = mkt_ret.rolling(63).mean()
     
-    # VIX-like fear index
     vol_zscore = (mkt_vol - mkt_vol.rolling(252).mean()) / (mkt_vol.rolling(252).std() + 1e-8)
     fear_index = vol_zscore.clip(-3, 3)
     
-    # Momentum sentiment
     mom_zscore = (mkt_mom - mkt_mom.rolling(252).mean()) / (mkt_mom.rolling(252).std() + 1e-8)
     
-    # Breadth
     breadth = (returns > 0).mean(axis=1)
     breadth_z = (breadth - breadth.rolling(252).mean()) / (breadth.rolling(252).std() + 1e-8)
     
-    # Create sentiment factors for each asset
     for col in prices.columns:
         asset_ret = returns[col]
         sent_beta = asset_ret.rolling(63).corr(mkt_ret)
@@ -406,8 +347,18 @@ def sentiment_augmented_factors(prices, returns):
 print("Creating sentiment-augmented factors...")
 sent_factors = sentiment_augmented_factors(prices, returns)
 
-# Combine with ML ensemble
-all_factors = {**factors, **sent_factors}
+# Combine with ML ensemble - align properly
+all_factors = {}
+common_idx = returns.index
+
+for k, v in factors.items():
+    aligned = v.reindex(common_idx).ffill().bfill()
+    all_factors[k] = aligned
+
+for k, v in sent_factors.items():
+    aligned = v.reindex(common_idx).ffill().bfill()
+    all_factors[k] = aligned
+
 print("Training sentiment-augmented ML ensemble...")
 sent_ml_signal = ml_factor_ensemble(all_factors, returns)
 
@@ -426,7 +377,6 @@ sent_ml_returns.to_csv('/root/quant/iter16_sentiment_ml_returns.csv')
 # ============================================================
 print("\n=== E5: Comprehensive Validation ===")
 
-# Collect all strategies
 strategies = {
     'SMA200': backtest(sma_trend(spy, 200).reindex(spy_ret.index).fillna(0), spy_ret, cost_bps=10),
     'VolTarget': backtest(vol_target(spy).reindex(spy_ret.index).fillna(0), spy_ret, cost_bps=10),
@@ -439,7 +389,6 @@ strategies = {
     'Sentiment_ML_Ensemble': sent_ml_returns.dropna(),
 }
 
-# Performance summary
 print("\n--- Performance Summary ---")
 perf_results = {}
 for name, ret in strategies.items():
@@ -451,7 +400,6 @@ for name, ret in strategies.items():
 perf_df = pd.DataFrame(perf_results).T
 perf_df.to_csv('/root/quant/iter16_comprehensive_perf.csv')
 
-# Statistical validation
 from stats import newey_west_t, deflated_sharpe, block_bootstrap_sharpe
 
 print("\n--- Statistical Validation ---")
@@ -477,7 +425,6 @@ for name, ret in strategies.items():
 val_df = pd.DataFrame(val_results).T
 val_df.to_csv('/root/quant/iter16_comprehensive_validation.csv')
 
-# Walk-forward validation
 print("\n--- Walk-Forward Validation ---")
 wf_results = {}
 n_folds = 4
@@ -515,7 +462,6 @@ print("\n=== Creating Plots ===")
 fig, axes = plt.subplots(3, 3, figsize=(18, 14))
 axes = axes.flatten()
 
-# Equity curves
 for i, (name, ret) in enumerate(strategies.items()):
     if i >= 8:
         continue
@@ -529,7 +475,6 @@ for i, (name, ret) in enumerate(strategies.items()):
         ax.set_title(f'{name} (Sharpe={sharpe(ret_clean):.2f})')
         ax.legend(fontsize=8)
 
-# Correlation heatmap
 ax = axes[8]
 strat_rets = pd.DataFrame({k: v.dropna() for k, v in strategies.items() if len(v.dropna())>100})
 strat_rets = strat_rets.dropna()
@@ -547,7 +492,6 @@ plt.tight_layout()
 plt.savefig('/root/quant/iter16_equity.png', dpi=150, bbox_inches='tight')
 plt.close()
 
-# Performance comparison bar chart
 fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
 names = list(perf_results.keys())
