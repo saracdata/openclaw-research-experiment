@@ -1,0 +1,14 @@
+,name,AnnRet%,AnnVol%,Sharpe,MaxDD%,Calmar,days
+MLP_Regressor,MLP_Regressor,-7.32,10.28,-0.69,-65.52,-0.11,3451
+Perceptron,Perceptron,-6.42,7.48,-0.85,-62.68,-0.1,3703
+Attention_Factor,Attention_Factor,-18.26,10.4,-1.89,-95.06,-0.19,3703
+HARLF_v2,HARLF_v2,-0.17,7.25,0.01,-20.05,-0.01,3704
+Transformer_Portfolio,Transformer_Portfolio,10.26,12.78,0.83,-29.82,0.34,3703
+SMA200,SMA200,10.28,11.37,0.92,-21.55,0.48,3703
+VolTarget,VolTarget,9.42,11.29,0.85,-15.13,0.62,3703
+TSMOM,TSMOM,4.36,16.56,0.34,-37.06,0.12,3703
+RSI2,RSI2,3.99,7.59,0.55,-18.37,0.22,3703
+MA50_200,MA50_200,3.56,16.54,0.29,-40.36,0.09,3703
+XSecMom,XSecMom,0.56,0.7,0.8,-1.84,0.3,3703
+GEM,GEM,2.52,3.11,0.82,-8.1,0.31,3703
+60_40,60_40,9.53,10.39,0.93,-27.24,0.35,3703
