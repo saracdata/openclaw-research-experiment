@@ -395,27 +395,35 @@ for name, ret in strategies.items():
 perf_df = pd.DataFrame(perf_results).T
 perf_df.to_csv('/root/quant/iter16_comprehensive_perf.csv')
 
-from stats import newey_west_t, deflated_sharpe, block_bootstrap_sharpe
+# Use correct stats module functions
+from stats import nw_tstat, circular_bootstrap_ci, dsr_test, walk_forward_split
+from scipy import stats
 
 print("\n--- Statistical Validation ---")
 val_results = {}
 all_sharpes = [sharpe(s.dropna()) for s in strategies.values() if len(s.dropna())>100]
+sr_std = np.std(all_sharpes)
+n_trials = len(all_sharpes)
+
 for name, ret in strategies.items():
     ret_clean = ret.dropna()
     if len(ret_clean) < 100:
         continue
-    nw_t = newey_west_t(ret_clean)
-    dsr = deflated_sharpe(ret_clean, all_sharpes)
-    bs_ci = block_bootstrap_sharpe(ret_clean)
+    nw_t, n = nw_tstat(ret_clean)
+    lo, hi = circular_bootstrap_ci(ret_clean)
     sh = sharpe(ret_clean)
+    dsr = dsr_test(sh, n_trials, n, sr_std,
+                   skew=float(stats.skew(ret_clean)), kurt=float(stats.kurtosis(ret_clean, fisher=False)))
+    yrs = n / 252
     val_results[name] = {
         'NW_t': round(nw_t, 3),
         'Sharpe': round(sh, 3),
         'DSR_p': round(dsr, 3),
-        'BS_CI_low': round(bs_ci[0], 3),
-        'BS_CI_high': round(bs_ci[1], 3),
+        'BS_CI_low': round(lo, 3),
+        'BS_CI_high': round(hi, 3),
+        'Years': round(yrs, 1)
     }
-    print(f"{name}: NW_t={nw_t:.3f}, SR={sh:.3f}, DSR_p={dsr:.3f}, CI=[{bs_ci[0]:.3f}, {bs_ci[1]:.3f}]")
+    print(f"{name}: NW_t={nw_t:.3f}, SR={sh:.3f}, DSR_p={dsr:.3f}, CI=[{lo:.3f}, {hi:.3f}]")
 
 val_df = pd.DataFrame(val_results).T
 val_df.to_csv('/root/quant/iter16_comprehensive_validation.csv')
