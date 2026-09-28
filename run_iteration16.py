@@ -76,13 +76,19 @@ def transformer_factor_signal(features, rets, train_window=252, pred_horizon=21)
     feature_names = list(features.keys())
     n_features = len(feature_names)
     
+    # Drop NaN from each feature first, then find common index
+    clean_features = {}
+    for key in feature_names:
+        clean_features[key] = features[key].dropna(how='all')
+    
+    # Find common index where ALL features have data
     common_idx = rets.index
     for key in feature_names:
-        common_idx = common_idx.intersection(features[key].index)
+        common_idx = common_idx.intersection(clean_features[key].index)
     
     X_list = []
     for key in feature_names:
-        X_list.append(features[key].loc[common_idx].values)
+        X_list.append(clean_features[key].loc[common_idx].values)
     
     X = np.stack(X_list, axis=2).astype(float)
     y = rets.loc[common_idx].shift(-pred_horizon).values.astype(float)
@@ -173,13 +179,20 @@ def ml_factor_ensemble(factors, returns, train_window=252, pred_horizon=21):
     from sklearn.linear_model import Ridge
     
     factor_names = list(factors.keys())
+    
+    # Drop NaN from each factor first
+    clean_factors = {}
+    for key in factor_names:
+        clean_factors[key] = factors[key].dropna(how='all')
+    
+    # Find common index where ALL factors have data
     common_idx = returns.index
     for key in factor_names:
-        common_idx = common_idx.intersection(factors[key].index)
+        common_idx = common_idx.intersection(clean_factors[key].index)
     
     aligned_factors = {}
     for key in factor_names:
-        df = factors[key].loc[common_idx]
+        df = clean_factors[key].loc[common_idx]
         aligned_factors[key] = df.reindex(columns=prices.columns)
     
     X_list = []
