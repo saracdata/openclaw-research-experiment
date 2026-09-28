@@ -399,7 +399,7 @@ advanced_strategies = {
     'TSMOM': tsmom(spy),
     'XSecMom': xsec_momentum(prices).mean(axis=1),
     'GEM': dual_momentum(prices[['SPY','GLD','TLT']]).mean(axis=1),
-    'Pairs': pairs_zscore(prices).mean(axis=1) if len(pairs_zscore(prices).columns) > 0 else pd.Series(0, index=spy.index),
+    'Pairs_SPY_TLT': pairs_zscore(spy, prices['TLT']),
     'MA_Cross': ma_crossover(spy),
 }
 
@@ -419,8 +419,8 @@ for name, pos in advanced_strategies.items():
         bench = returns.mean(axis=1)
     elif name == 'GEM':
         bench = returns[['SPY','GLD','TLT']].mean(axis=1)
-    elif name == 'Pairs':
-        bench = returns.mean(axis=1)
+    elif name == 'Pairs_SPY_TLT':
+        bench = returns[['SPY', 'TLT']].mean(axis=1)
     
     pos_aligned = pos.reindex(bench.index).fillna(0)
     ret = backtest(pos_aligned, bench, cost_bps=10)
@@ -495,16 +495,9 @@ all_strats = {
     '60_40': backtest(pd.DataFrame({'SPY': 0.6, 'TLT': 0.4}, index=returns.index), returns[['SPY','TLT']], cost_bps=10),
     'Sample_MinVar': sample_ret,
     'Shrunk_MinVar': shrunk_ret,
-    'Online_GD': backtest(np.sign(pd.Series(bayes_preds, index=y.index[-len(bayes_preds):])), 
-                          pd.Series(actuals, index=y.index[-len(actuals):]), cost_bps=10),
     'AR5': ar_ret,
     'EWMA_Vol': ewma_ret,
 }
-
-# Add ensemble strategies
-for name, model in models.items():
-    # Already computed above, skip for brevity
-    pass
 
 val_results = {}
 all_sharpes = [sharpe(s.dropna()) for s in all_strats.values() if len(s.dropna()) > 100]
