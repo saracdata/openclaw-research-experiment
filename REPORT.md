@@ -2128,3 +2128,141 @@ The negative H estimate likely reflects:
 6. **Combine with Iteration 16 RL**: Use AC optimal execution as action space for RL trade scheduling
 7. **Production**: Latency measurement, fill reconciliation, TCA (transaction cost analysis) integration
 
+
+---
+
+# Iteration #15 — Rough Volatility (RFSV), Rough Path Signatures, LOB Microstructure, Options Strategies
+**Date**: 2026-09-28 03:32 UTC
+
+## Concepts from QuantStart Articles Tested
+- **Rough Volatility / RFSV**: "Derivatives Pricing II: Volatility Is Rough" — fractional stochastic volatility stress testing
+- **Rough Path Theory / Signatures**: "Rough Path Theory and Signatures Applied to Quantitative Finance" — log-signature features for regime prediction
+- **LOB Microstructure**: "High Frequency Trading II: Limit Order Book" — enhanced LOB with adverse selection, queue position
+- **Jupyter/Plotly Prototyping**: "Jupyter and Plotly for Quantitative Finance" — interactive visualization suite
+- **Advanced Options**: Protective puts, covered calls, collars, delta-hedged straddles, put spreads, VRP capture
+
+## Strategy Performance (Net of 10 bps Costs, 3703 days)
+
+| Strategy | AnnRet% | AnnVol% | Sharpe | MaxDD% | Calmar |
+|---|---|---|---|---|---|
+| BuyHold | 14.99 | 16.51 | 0.93 | -33.72 | 0.44 |
+| **SMA200** | 10.28 | 11.37 | **0.92** | **-21.55** | 0.48 |
+| GEM | 14.34 | 16.33 | 0.90 | -33.72 | 0.43 |
+| XSecMom | 13.51 | 16.16 | 0.87 | -33.72 | 0.40 |
+| VolTarget | 9.42 | 11.29 | 0.85 | -15.13 | **0.62** |
+| RSI2 | 3.99 | 7.59 | 0.55 | -18.37 | 0.22 |
+| TSMOM | 4.36 | 16.56 | 0.34 | -37.06 | 0.12 |
+| MACross | 3.56 | 16.54 | 0.29 | -40.36 | 0.09 |
+
+## Key Findings
+
+### 1. RFSV Stress Testing: All Strategies Fail Under Rough Volatility
+| Strategy | Mean Sharpe | Std | Min | Max | % Negative |
+|---|---|---|---|---|---|
+| XSecMom | **-0.21** | 0.31 | -0.74 | 0.34 | 63% |
+| SMA200 | -0.22 | 0.35 | -0.74 | 0.29 | 70% |
+| VolTarget | -0.25 | 0.30 | -0.56 | 0.24 | 73% |
+
+**Finding**: **All strategies have NEGATIVE mean Sharpe under RFSV (H=0.1, nu=0.3)** across 30 simulated paths. 63-73% of paths produce negative Sharpe. Rough volatility with anti-persistent vol (H=0.1) and high vol-of-vol destroys trend/momentum strategies. The negative skew of RFSV (leverage effect rho=-0.7) creates frequent vol spikes that whipsaw trend followers.
+
+**Implication**: Historical backtests on 2012-2026 (benign regime) **grossly overstate strategy robustness**. Production systems must stress-test against RFSV.
+
+### 2. Signature-Based Regime Prediction: Marginal Value
+| Metric | Value |
+|---|---|
+| Signature Regime Accuracy | 52.1% |
+| Base SMA200 Sharpe | 0.92 |
+| Regime-Adjusted Sharpe | 0.94 |
+
+**Finding**: **Log-signature features (order 3) on SPY returns provide only 52% accuracy** predicting high-vol regime (>80th percentile RV). The regime-adjusted SMA200 (reduce 50% exposure when high vol predicted) marginally improves Sharpe (0.94 vs 0.92). Limitations:
+- 1D signatures lose cross-asset information
+- Order 3 may be insufficient for complex paths
+- Need proper signature library (esig/iisignature) for multidimensional paths
+- Regime labels (RV quantiles) are noisy
+
+### 3. Enhanced LOB Microstructure: Execution Costs 2-5x Base Assumption
+| Metric | Value |
+|---|---|
+| Base Cost Assumption | 10 bps |
+| LOB Avg Cost (XSec Mom) | **47 bps** |
+| LOB Max Cost | 156 bps |
+| Base Sharpe (10bp) | 0.87 |
+| LOB Sharpe | **0.31** |
+
+**Finding**: **Realistic LOB execution costs are 2-5x higher than simple 10bp assumption** for high-turnover strategies (XSec Mom ~2.5%/day turnover). Adverse selection (toxic flow detection) and participation rate impact significantly increase costs. Low-turnover strategies (SMA200 ~0.1%/day) are minimally affected.
+
+### 4. Advanced Options Strategies: Collar & Put Spread Provide Downside Protection
+| Strategy | Sharpe | AnnRet% | AnnVol% | MaxDD% |
+|---|---|---|---|---|
+| **Put Spread (95/90)** | **0.84** | 8.2% | 9.8% | **-12.1%** |
+| Collar | 0.78 | 7.5% | 9.6% | -13.4% |
+| Protective Put | 0.62 | 6.1% | 9.8% | -15.2% |
+| VRP Capture | 0.45 | 3.2% | 7.1% | -8.9% |
+| Covered Call | 0.38 | 5.8% | 15.2% | -22.1% |
+| Delta-Hedged Straddle | 0.12 | 1.1% | 9.4% | -18.3% |
+
+**Finding**: **Put Spread (95/90 collar) provides best risk-adjusted return** (0.84 Sharpe, -12.1% DD) by defining max loss (5%) and capping cost via short put. Covered call has high DD (-22%) because upside is capped while downside is full. VRP Capture only trades when IV > RV + 2%, reducing frequency but improving selectivity.
+
+### 5. Walk-Forward Validation
+| Fold | Best Window | Train Sharpe | Test Sharpe |
+|---|---|---|---|
+| 1 | 200 | 0.87 | 0.91 |
+| 2 | 200 | 0.78 | 0.54 |
+| 3 | 150 | 0.85 | 1.28 |
+| 4 | 200 | 0.72 | 0.88 |
+
+**Finding**: Consistent across all iterations — SMA window 200 stable, test Sharpe varies by regime (0.54-1.28).
+
+### 6. Purged K-Fold Validation
+| Fold | Sharpe |
+|---|---|
+| 1 | 1.094 |
+| 2 | 0.525 |
+| 3 | 1.401 |
+| **Mean** | **1.007** |
+| **Std** | **0.363** |
+
+**Finding**: Consistent across Iterations 10-15 — mean ~1.0, high variance confirms regime dependence.
+
+### 7. Statistical Validation (PSR, Skew, Kurtosis)
+| Strategy | Sharpe | PSR(>dispersion) | Skew | Kurtosis |
+|---|---|---|---|---|
+| BuyHold | 0.93 | 1.0 | -0.31 | 17.5 |
+| SMA200 | 0.92 | 1.0 | -0.82 | 7.4 |
+| GEM | 0.90 | 1.0 | -0.31 | 18.3 |
+| XSecMom | 0.87 | 1.0 | -0.32 | 19.0 |
+| VolTarget | 0.85 | 1.0 | -0.84 | 7.3 |
+| RSI2 | 0.55 | 0.85 | 5.84 | 152.4 |
+| TSMOM | 0.34 | 0.0 | -0.35 | 17.4 |
+| MACross | 0.30 | 0.0 | -0.37 | 17.4 |
+
+**Finding**: 
+- **RSI2 has extreme kurtosis (152)** — return distribution has massive outliers
+- **VolTarget and SMA200 have lowest kurtosis (7-8)** — most normal-like
+- **TSMOM and MACross fail PSR(>0.5)** — not significantly better than 0.5 Sharpe hurdle
+- All strategies have **negative skew** except RSI2 (positive due to mean-reversion capturing crashes)
+
+## Files Generated
+- `iter15_comprehensive_perf.csv` — 8-strategy performance
+- `iter15_comprehensive_validation.csv` — PSR, skew, kurtosis
+- `iter15_comprehensive_walkforward.csv` — 4-fold walk-forward
+- `iter15_rfsv_stress.csv` — RFSV stress (30 paths × 3 strategies)
+- `iter15_signature_regime.csv` — Signature regime prediction results
+- `iter15_lob_microstructure.csv` — LOB execution cost analysis
+- `iter15_options_strategies.csv` — 6 options strategies comparison
+- `iter15_prototyping.csv` — Plotly visualization status
+- `iter15_purged_cv.csv` — Purged K-Fold results
+- `iter15_equity_curves.html/png` — Equity curves with drawdown
+- `iter15_return_dist.png` — Return distributions
+- `iter15_rolling_sharpe.png` — Rolling 63-day Sharpe
+- `iter15_corr_heatmap.png` — Strategy correlation matrix
+- `iter15_risk_return.png` — Risk-return scatter
+
+## Next Steps
+1. **RFSV Calibration**: Fit RFSV parameters (H, nu, rho) to real SPY data using MCMC/particle filter
+2. **Signatures**: Use esig/iisignature for multidimensional path signatures (lead-lag, cross-asset)
+3. **LOB**: Calibrate with real order book data (NASDAQ ITCH, Binance) for spread, depth, impact
+4. **Options**: Integrate real options chains (OPRA) for IV surface, term structure, VRP harvesting
+5. **Combine with Iteration 16 RL**: Use options strategies as action space, RFSV as environment
+6. **Production**: TCA integration, execution algorithm selection (TWAP/VWAP/AC/IS), smart order routing
+
