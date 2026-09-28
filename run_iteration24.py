@@ -14,6 +14,7 @@ from scipy.stats import norm
 from scipy.optimize import minimize
 from sklearn.covariance import LedoitWolf
 from hmmlearn import hmm
+from sklearn.preprocessing import StandardScaler
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -26,7 +27,7 @@ np.random.seed(42)
 # 1. DATA LOADING
 # ============================================================
 tickers = ['SPY', 'QQQ', 'IWM', 'EFA', 'EEM', 'AGG', 'TLT', 'GLD', 'DBC', 'VNQ',
-           'XLE', 'XLF', 'XLK', 'XLP', 'XLU', 'XLV', 'XLE', 'VIG', 'SCHD', 'SHY']
+           'XLE', 'XLF', 'XLK', 'XLP', 'XLU', 'XLV', 'VIG', 'SCHD', 'SHY']
 
 # Use all available tickers that exist
 available = []
@@ -53,7 +54,6 @@ returns = returns.loc['2015-01-01':'2024-12-31']
 def generate_synthetic_correlated(returns, n_samples=2000):
     """Generate synthetic returns preserving correlation structure using Cholesky"""
     mu = returns.mean().values
-    # Ledoit-Wolf shrinkage for stable covariance
     lw = LedoitWolf().fit(returns)
     cov = lw.covariance_
     L = np.linalg.cholesky(cov + 1e-6 * np.eye(len(mu)))
@@ -68,14 +68,10 @@ synth_returns = generate_synthetic_correlated(returns, n_samples=2520)  # ~10 ye
 # 3. VASICEK / OU CALIBRATION (QuantStart articles)
 # ============================================================
 def calibrate_vasicek(series, dt=1/252):
-    """Calibrate Vasicek (OU) process: dx = kappa*(theta - x)*dt + sigma*dW
-    Returns: kappa (mean reversion speed), theta (long-term mean), sigma (vol)"""
+    """Calibrate Vasicek (OU) process: dx = kappa*(theta - x)*dt + sigma*dW"""
     x = series.values
     x_lag = np.roll(x, 1)[1:]
     x = x[1:]
-    # OLS: x_t = x_{t-1} + kappa*(theta - x_{t-1})*dt + sigma*sqrt(dt)*eps
-    # => x_t - x_{t-1} = kappa*theta*dt - kappa*x_{t-1}*dt + noise
-    # Regress dx on x_{t-1}
     dx = x - x_lag
     X = np.column_stack([np.ones_like(x_lag), x_lag])
     beta = np.linalg.lstsq(X, dx, rcond=None)[0]
@@ -86,17 +82,17 @@ def calibrate_vasicek(series, dt=1/252):
     return max(kappa, 0.01), theta, max(sigma, 0.001)
 
 def vasicek_signal(returns, window=60):
-    """Generate mean-reversion signals using rolling Vasicek calibration"""
+    """Generate mean-reversion signals using rolling Vasicek calibration - FIXED"""
     signals = pd.DataFrame(0.0, index=returns.index, columns=returns.columns)
     for col in returns.columns:
+        col_signals = np.zeros(len(returns))
         for i in range(window, len(returns)):
             window_data = returns[col].iloc[i-window:i]
             kappa, theta, sigma = calibrate_vasicek(window_data)
             current = returns[col].iloc[i]
-            # Z-score under OU stationary distribution
             z = (current - theta) / (sigma / np.sqrt(2 * kappa))
-            # Mean reversion: short when z > 0, long when z < 0
-            signals[col].iloc[i] = -np.clip(z / 3, -1, 1)
+            col_signals[i] = -np.clip(z / 3, -1, 1)
+        signals.loc[:, col] = col_signals
     return signals
 
 # ============================================================
@@ -104,9 +100,6 @@ def vasicek_signal(returns, window=60):
 # ============================================================
 def log_signature(path, level=2):
     """Compute log-signature of a path (truncated tensor algebra)"""
-    # Simplified: compute iterated integrals up to level
-    # Level 1: increments
-    # Level 2: area (Levy area)
     incs = np.diff(path)
     if len(incs) == 0:
         return np.zeros(level * len(path))
@@ -125,14 +118,12 @@ def signature_regime_features(returns, window=60, level=2):
     dates = []
     for i in range(window, len(returns)):
         window_data = returns.iloc[i-window:i]
-        # Path signatures for each asset
         sig_feats = []
         for col in returns.columns:
             path = window_data[col].cumsum().values
             sig_feats.extend(log_signature(path, level))
-        # Cross-asset signature (area between pairs)
         if level >= 2:
-            for j in range(min(5, n_assets)):  # Limit pairs for speed
+            for j in range(min(5, n_assets)):
                 for k in range(j+1, min(5, n_assets)):
                     p1 = window_data.iloc[:, j].cumsum().values
                     p2 = window_data.iloc[:, k].cumsum().values
@@ -149,8 +140,6 @@ def signature_regime_features(returns, window=60, level=2):
 # ============================================================
 def fit_hmm_regimes(features, n_states=3):
     """Fit HMM on signature features for regime detection"""
-    # Standardize
-    from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     X = scaler.fit_transform(features.fillna(0))
     
@@ -168,12 +157,10 @@ def regime_conditional_portfolio(returns, regimes, probs, lookback=60):
     """Optimize portfolio weights conditional on regime"""
     n_states = probs.shape[1]
     # Align: probs/regimes are from signature features starting at window (60)
-    # So they match returns.iloc[window:]
     aligned_returns = returns.iloc[-len(probs):]
     weights = pd.DataFrame(0.0, index=aligned_returns.index, columns=returns.columns)
     
     for state in range(n_states):
-        # Find periods where this regime dominates
         state_mask = probs[:, state] > 0.5
         if state_mask.sum() < lookback:
             continue
@@ -181,12 +168,10 @@ def regime_conditional_portfolio(returns, regimes, probs, lookback=60):
         if len(state_returns) < lookback:
             continue
         
-        # Mean-variance optimization with shrinkage
         mu = state_returns.mean().values
         lw = LedoitWolf().fit(state_returns)
         cov = lw.covariance_
         
-        # Maximize Sharpe: w = inv(cov) @ mu / sum(inv(cov) @ mu)
         inv_cov = np.linalg.pinv(cov + 1e-4 * np.eye(len(mu)))
         w = inv_cov @ mu
         w = np.maximum(w, 0)  # Long only
@@ -195,7 +180,6 @@ def regime_conditional_portfolio(returns, regimes, probs, lookback=60):
         else:
             w = np.ones(len(mu)) / len(mu)
         
-        # Apply weights during this regime
         state_dates = aligned_returns.index[state_mask]
         for d in state_dates:
             weights.loc[d] = w
@@ -220,8 +204,7 @@ regimes, probs, hmm_model, scaler = fit_hmm_regimes(sig_features, n_states=3)
 print("Computing regime-conditional portfolio...")
 regime_weights = regime_conditional_portfolio(returns, regimes, probs, lookback=60)
 
-# Align mr_signals with regime_weights (mr_signals starts at window=60)
-# Both should now be aligned to full returns index
+# Combine: Vasicek MR signals * Regime weights
 combined_pos = mr_signals * regime_weights
 combined_pos = combined_pos.clip(-1, 1)
 
@@ -262,7 +245,6 @@ def purged_kfold_indices(n, n_splits=5, embargo_pct=0.01):
         start = i * fold_size
         end = (i + 1) * fold_size if i < n_splits - 1 else n
         test_idx = np.arange(start, end)
-        # Purge: remove embargo from train
         train_idx = np.concatenate([
             np.arange(0, max(0, start - embargo)),
             np.arange(min(n, end + embargo), n)
@@ -292,7 +274,6 @@ for train_idx, test_idx in folds:
     train_pos = aligned_pos.iloc[train_idx]
     test_pos = aligned_pos.iloc[test_idx]
     
-    # Recalibrate on train (simplified: use same positions)
     strat_train = backtest(train_pos, train_returns, cost_bps=cost_bps)
     strat_test = backtest(test_pos, test_returns, cost_bps=cost_bps)
     cv_sharpes.append(sharpe(strat_test))
@@ -342,7 +323,6 @@ for name, pos_fn in [('Vasicek_MR', vasicek_signal), ('Regime_Conditional', regi
 # 12. REGIME CHARACTERIZATION
 # ============================================================
 regime_chars = []
-# regimes aligns with sig_features index = returns.index[window:]
 aligned_returns_reg = returns.iloc[-len(regimes):]
 for s in range(3):
     mask = regimes == s
