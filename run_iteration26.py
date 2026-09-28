@@ -1,4 +1,4 @@
-"""Iteration #26: Regime-Conditioned VRP + Tail Hedging (Best of Iter #14 + #25)
+"""Iteration #26: Regime-Conditioned VRP + Tail Hedging (Optimized for Speed)
 - Combines Iteration #14's Tail_Hedged (Sharpe 2.99) with Iteration #25's Regime Detection
 - VRP strategy conditioned on signature+HMM regimes
 - Tail hedging overlay on regime-conditional portfolio
@@ -24,12 +24,10 @@ from strategies import *
 np.random.seed(42)
 
 # ============================================================
-# 1. DATA LOADING
+# 1. DATA LOADING (Reduced ticker set for speed)
 # ============================================================
-# Use Iteration #14's 30 ETFs for VRP (needs options proxies) + Iteration #25's 19 ETFs
 tickers = ['SPY', 'QQQ', 'IWM', 'EFA', 'EEM', 'AGG', 'TLT', 'GLD', 'DBC', 'VNQ',
-           'XLE', 'XLF', 'XLK', 'XLP', 'XLU', 'XLV', 'VIG', 'SCHD', 'SHY',
-           'BIL', 'GOVT', 'HYG', 'IEF', 'IEI', 'LQD', 'MDY', 'SMH', 'VEA', 'VTI', 'VWO']
+           'XLE', 'XLF', 'XLK', 'XLP', 'XLU', 'XLV', 'VIG', 'SCHD', 'SHY']
 
 available = []
 for t in tickers:
@@ -48,6 +46,8 @@ for t in available:
 
 returns = price_df.pct_change().dropna()
 returns = returns.loc['2015-01-01':'2024-12-31']
+n_assets = len(returns.columns)
+print(f"Returns shape: {returns.shape}")
 
 # ============================================================
 # 2. SYNTHETIC CORRELATED DATA GENERATION
@@ -68,60 +68,42 @@ synth_returns = generate_synthetic_correlated(returns, n_samples=2520)
 # 3. VRP STRATEGY (Variance Risk Premium - Iteration #14 style)
 # ============================================================
 def vrp_signal(returns, window=60):
-    """
-    VRP = Implied Vol - Realized Vol (proxy using options-implied vs historical)
-    Proxy: Use rolling volatility term structure slope as VRP signal
-    """
     signals = pd.DataFrame(0.0, index=returns.index, columns=returns.columns)
     
     for col in returns.columns:
-        col_signals = np.zeros(len(returns))
-        for i in range(window, len(returns)):
-            # Short-term realized vol (21d)
-            short_vol = returns[col].iloc[i-21:i].std() * np.sqrt(252)
-            # Medium-term realized vol (63d)
-            med_vol = returns[col].iloc[i-63:i].std() * np.sqrt(252)
-            # Long-term realized vol (126d)
-            long_vol = returns[col].iloc[i-126:i].std() * np.sqrt(252) if i >= 126 else med_vol
-            
-            # VRP proxy: term structure slope (short - long) / long
-            # Positive = vol term structure upward sloping = VRP positive = short vol
-            if long_vol > 0:
-                vrp = (short_vol - long_vol) / long_vol
-            else:
-                vrp = 0
-            
-            # Signal: negative VRP (backwardation) -> long vol / long asset
-            # Positive VRP (contango) -> short vol / underweight asset
-            col_signals[i] = -np.clip(vrp * 2, -1, 1)  # Scale and clip
+        col_ret = returns[col].values
+        col_signals = np.zeros(len(col_ret))
+        
+        # Vectorized rolling vol computation
+        from pandas import Series
+        s = Series(col_ret)
+        short_vol = s.rolling(21).std().values * np.sqrt(252)
+        long_vol = s.rolling(126).std().values * np.sqrt(252)
+        
+        # VRP proxy
+        vrp = np.where(long_vol > 0, (short_vol - long_vol) / long_vol, 0)
+        col_signals = -np.clip(vrp * 2, -1, 1)
+        col_signals[:window] = 0
         
         signals.loc[:, col] = col_signals
     
     return signals
 
 # ============================================================
-# 4. SIGNATURE-BASED REGIME FEATURES
+# 4. SIGNATURE-BASED REGIME FEATURES (Simplified)
 # ============================================================
-def log_signature(path, level=3):  # Level 3 for richer features
+def log_signature(path, level=2):
     incs = np.diff(path)
     if len(incs) == 0:
-        return np.zeros(level * len(path))
+        return np.zeros(0)
     sig = []
-    sig.append(incs.mean())  # Level 1
+    sig.append(incs.mean())
     if level >= 2 and len(incs) > 1:
-        area = np.sum([incs[i] * incs[j] for i in range(len(incs)) for j in range(i)])
-        sig.append(area / len(incs))
-    if level >= 3 and len(incs) > 2:
-        # Level 3: cubic term
-        cubic = np.sum([incs[i] * incs[j] * incs[k] 
-                       for i in range(len(incs)) 
-                       for j in range(i) 
-                       for k in range(j)])
-        sig.append(cubic / len(incs))
+        area = np.sum(np.tril(np.outer(incs, incs), -1)) / len(incs)
+        sig.append(area)
     return np.array(sig)
 
-def signature_regime_features(returns, window=60, level=3):
-    n_assets = len(returns.columns)
+def signature_regime_features(returns, window=60, level=2):
     features = []
     dates = []
     for i in range(window, len(returns)):
@@ -130,15 +112,15 @@ def signature_regime_features(returns, window=60, level=3):
         for col in returns.columns:
             path = window_data[col].cumsum().values
             sig_feats.extend(log_signature(path, level))
-        if level >= 2:
-            for j in range(min(8, n_assets)):  # More cross-asset pairs
-                for k in range(j+1, min(8, n_assets)):
-                    p1 = window_data.iloc[:, j].cumsum().values
-                    p2 = window_data.iloc[:, k].cumsum().values
-                    inc1 = np.diff(p1)
-                    inc2 = np.diff(p2)
-                    area = np.sum([inc1[i] * inc2[j] for i in range(len(inc1)) for j in range(i)])
-                    sig_feats.append(area / len(inc1))
+        # Cross-asset pairs (first 5 assets)
+        for j in range(min(5, n_assets)):
+            for k in range(j+1, min(5, n_assets)):
+                p1 = window_data.iloc[:, j].cumsum().values
+                p2 = window_data.iloc[:, k].cumsum().values
+                inc1 = np.diff(p1)
+                inc2 = np.diff(p2)
+                area = np.sum(np.tril(np.outer(inc1, inc2), -1)) / len(inc1)
+                sig_feats.append(area)
         features.append(sig_feats)
         dates.append(returns.index[i])
     return pd.DataFrame(features, index=dates)
@@ -146,16 +128,21 @@ def signature_regime_features(returns, window=60, level=3):
 # ============================================================
 # 5. HMM REGIME DETECTION
 # ============================================================
-def fit_hmm_regimes(features, n_states=4):  # 4 states for more granularity
-    scaler = StandardScaler()
-    X = scaler.fit_transform(features.fillna(0))
-    
-    model = hmm.GaussianHMM(n_components=n_states, covariance_type='full', 
-                            n_iter=200, random_state=42)
-    model.fit(X)
-    regimes = model.predict(X)
-    probs = model.predict_proba(X)
-    return regimes, probs, model, scaler
+print("Computing VRP signals...")
+vrp_signals = vrp_signal(returns, window=60)
+
+print("Computing signature features...")
+sig_features = signature_regime_features(returns, window=60, level=2)
+
+print("Fitting HMM regimes...")
+scaler = StandardScaler()
+X = scaler.fit_transform(sig_features.fillna(0))
+
+model = hmm.GaussianHMM(n_components=3, covariance_type='full', 
+                        n_iter=100, random_state=42)
+model.fit(X)
+regimes = model.predict(X)
+probs = model.predict_proba(X)
 
 # ============================================================
 # 6. REGIME-CONDITIONAL PORTFOLIO OPTIMIZATION
@@ -193,36 +180,34 @@ def regime_conditional_portfolio(returns, regimes, probs, lookback=60):
     weights = weights.reindex(returns.index).ffill().fillna(1/len(returns.columns))
     return weights
 
+print("Computing regime-conditional portfolio...")
+regime_weights = regime_conditional_portfolio(returns, regimes, probs, lookback=60)
+
+# Combine: VRP as tilt on regime weights
+vrp_tilted = regime_weights * (1 + vrp_signals * 0.5)
+vrp_tilted = vrp_tilted.clip(-1, 1)
+
 # ============================================================
 # 7. TAIL HEDGING (Iteration #14 style)
 # ============================================================
 def tail_hedge_overlay(base_weights, returns, hedge_ratio=0.2, tail_threshold=-0.02):
-    """
-    Add tail hedge: when portfolio returns breach threshold, 
-    shift to defensive assets (TLT, SHY, GLD, BIL)
-    """
     defensive = ['TLT', 'SHY', 'GLD', 'BIL', 'GOVT', 'IEF', 'IEI']
     defensive = [d for d in defensive if d in returns.columns]
     
     hedged_weights = base_weights.copy()
     portfolio_ret = (base_weights.shift(1) * returns).sum(axis=1).fillna(0)
-    
-    # Rolling portfolio vol for scaling
     port_vol = portfolio_ret.rolling(21).std() * np.sqrt(252)
     
     for i in range(1, len(hedged_weights)):
         if portfolio_ret.iloc[i-1] < tail_threshold and port_vol.iloc[i-1] > 0:
-            # Activate tail hedge: move hedge_ratio to defensive assets
             current_w = hedged_weights.iloc[i].values
             hedge_amount = hedge_ratio
             
-            # Reduce risky assets proportionally
             risky_mask = ~hedged_weights.columns.isin(defensive)
             risky_sum = current_w[risky_mask].sum()
             if risky_sum > 0:
                 current_w[risky_mask] *= (1 - hedge_amount / risky_sum)
             
-            # Add to defensive
             def_mask = hedged_weights.columns.isin(defensive)
             if def_mask.sum() > 0:
                 current_w[def_mask] += hedge_amount / def_mask.sum()
@@ -232,37 +217,14 @@ def tail_hedge_overlay(base_weights, returns, hedge_ratio=0.2, tail_threshold=-0
     
     return hedged_weights
 
-# ============================================================
-# 8. COMBINED STRATEGY: REGIME VRP + TAIL HEDGE
-# ============================================================
-print("Computing VRP signals...")
-vrp_signals = vrp_signal(returns, window=60)
-
-print("Computing signature features...")
-sig_features = signature_regime_features(returns, window=60, level=3)
-
-print("Fitting HMM regimes...")
-regimes, probs, hmm_model, scaler = fit_hmm_regimes(sig_features, n_states=4)
-
-print("Computing regime-conditional portfolio...")
-regime_weights = regime_conditional_portfolio(returns, regimes, probs, lookback=60)
-
-# Combine: VRP as tilt on regime weights
-vrp_tilted = regime_weights * (1 + vrp_signals * 0.5)  # 50% tilt strength
-vrp_tilted = vrp_tilted.clip(-1, 1)
-
 # Apply tail hedging
 tail_hedged = tail_hedge_overlay(vrp_tilted, returns, hedge_ratio=0.3, tail_threshold=-0.015)
-
-# Also test: pure regime + tail hedge (no VRP)
 regime_tail_hedged = tail_hedge_overlay(regime_weights, returns, hedge_ratio=0.3, tail_threshold=-0.015)
-
-# Also test: VRP only + tail hedge
 vrp_only = vrp_signals.copy()
 vrp_tail_hedged = tail_hedge_overlay(vrp_only, returns, hedge_ratio=0.3, tail_threshold=-0.015)
 
 # ============================================================
-# 9. BACKTESTING
+# 8. BACKTESTING
 # ============================================================
 cost_bps = 10
 aligned_returns = returns.iloc[-len(vrp_tilted):]
@@ -286,7 +248,7 @@ for name, pos in strategies.items():
     print(f"{name}: {results[name]}")
 
 # ============================================================
-# 10. PURGED CV + BOOTSTRAP
+# 9. PURGED CV + BOOTSTRAP
 # ============================================================
 def purged_kfold_indices(n, n_splits=5, embargo_pct=0.01):
     fold_size = n // n_splits
@@ -303,7 +265,7 @@ def purged_kfold_indices(n, n_splits=5, embargo_pct=0.01):
         indices.append((train_idx, test_idx))
     return indices
 
-def bootstrap_sharpe(returns, n_boot=1000):
+def bootstrap_sharpe(returns, n_boot=500):
     n = len(returns)
     boots = []
     for _ in range(n_boot):
@@ -332,16 +294,14 @@ for name, pos in strategies.items():
     folds = purged_kfold_indices(n, n_splits=5, embargo_pct=0.01)
     cv_sharpes = []
     for train_idx, test_idx in folds:
-        train_returns = aligned_returns.iloc[train_idx]
-        test_returns = aligned_returns.iloc[test_idx]
-        train_pos = pos.iloc[train_idx]
         test_pos = pos.iloc[test_idx]
+        test_returns = aligned_returns.iloc[test_idx]
         strat_test = backtest(test_pos, test_returns, cost_bps=cost_bps)
         cv_sharpes.append(sharpe(strat_test))
     cv_sharpes = np.array(cv_sharpes)
     
     # Bootstrap
-    boot_sharpes = bootstrap_sharpe(strat_ret, n_boot=500)
+    boot_sharpes = bootstrap_sharpe(strat_ret, n_boot=300)
     
     # PSR
     psr = probabilistic_sharpe(sharpe(strat_ret), sharpe_bench=0, n_obs=len(strat_ret),
@@ -361,14 +321,19 @@ for name, pos in strategies.items():
     print(f"  Bootstrap: {boot_sharpes.mean():.4f} ± {boot_sharpes.std():.4f}")
 
 # ============================================================
-# 11. SYNTHETIC VALIDATION
+# 10. SYNTHETIC VALIDATION
 # ============================================================
 print("\n=== Synthetic Validation ===")
 synth_strategies = {}
 
 # Regime conditional on synthetic
-synth_sig = signature_regime_features(synth_returns, window=60, level=3)
-synth_regimes, synth_probs, _, _ = fit_hmm_regimes(synth_sig, n_states=4)
+synth_sig = signature_regime_features(synth_returns, window=60, level=2)
+synth_scaler = StandardScaler()
+synth_X = synth_scaler.fit_transform(synth_sig.fillna(0))
+synth_model = hmm.GaussianHMM(n_components=3, covariance_type='full', n_iter=100, random_state=42)
+synth_model.fit(synth_X)
+synth_regimes = synth_model.predict(synth_X)
+synth_probs = synth_model.predict_proba(synth_X)
 synth_regime_w = regime_conditional_portfolio(synth_returns, synth_regimes, synth_probs, lookback=60)
 synth_regime_ret = backtest(synth_regime_w, synth_returns, cost_bps=cost_bps)
 synth_strategies['Regime_Conditional'] = perf(synth_regime_ret, 'Regime_Conditional_Synthetic')
@@ -389,11 +354,11 @@ for name, res in synth_strategies.items():
     print(f"{name}: Sharpe={res['Sharpe']:.2f}, Ret={res['AnnRet%']:.2f}%, DD={res['MaxDD%']:.2f}%")
 
 # ============================================================
-# 12. REGIME CHARACTERIZATION
+# 11. REGIME CHARACTERIZATION
 # ============================================================
 regime_chars = []
 aligned_returns_reg = returns.iloc[-len(regimes):]
-for s in range(4):
+for s in range(3):
     mask = regimes == s
     if mask.sum() > 0:
         regime_ret = aligned_returns_reg[mask].mean(axis=1)
@@ -409,7 +374,7 @@ print("\nRegime Characteristics:")
 print(regime_df)
 
 # ============================================================
-# 13. SAVE OUTPUTS
+# 12. SAVE OUTPUTS
 # ============================================================
 perf_df = pd.DataFrame(results).T
 perf_df.to_csv('iter26_comprehensive_perf.csv')
@@ -430,7 +395,7 @@ best_ret.to_csv('iter26_best_returns.csv')
 aligned_returns.to_csv('iter26_aligned_returns.csv')
 
 # ============================================================
-# 14. PLOTTING
+# 13. PLOTTING
 # ============================================================
 fig, axes = plt.subplots(2, 3, figsize=(18, 10))
 
@@ -448,9 +413,9 @@ axes[0, 0].grid(True, alpha=0.3)
 
 # Regime probabilities
 sig_dates = sig_features.index
-for s in range(4):
+for s in range(3):
     axes[0, 1].plot(sig_dates, probs[:, s], label=f'Regime {s}', alpha=0.7)
-axes[0, 1].set_title('HMM Regime Probabilities (Level-3 Signatures)')
+axes[0, 1].set_title('HMM Regime Probabilities (Level-2 Signatures)')
 axes[0, 1].legend()
 axes[0, 1].grid(True, alpha=0.3)
 
@@ -467,7 +432,6 @@ axes[0, 2].grid(True, alpha=0.3)
 
 # CV Sharpe distributions
 for i, name in enumerate(val_names):
-    # Recompute for plotting
     pos = strategies[name]
     n = len(pos)
     folds = purged_kfold_indices(n, n_splits=5, embargo_pct=0.01)
@@ -485,8 +449,8 @@ axes[1, 0].grid(True, alpha=0.3)
 # Bootstrap distributions (best strategy)
 best_pos = strategies[best_name]
 best_ret = backtest(best_pos, aligned_returns, cost_bps=cost_bps)
-boot_sharpes = bootstrap_sharpe(best_ret, n_boot=1000)
-axes[1, 1].hist(boot_sharpes, bins=50, alpha=0.7, edgecolor='black')
+boot_sharpes = bootstrap_sharpe(best_ret, n_boot=500)
+axes[1, 1].hist(boot_sharpes, bins=30, alpha=0.7, edgecolor='black')
 axes[1, 1].axvline(sharpe(best_ret), color='red', linestyle='--', label=f'Observed: {sharpe(best_ret):.3f}')
 axes[1, 1].axvline(boot_sharpes.mean(), color='green', linestyle='--', label=f'Mean: {boot_sharpes.mean():.3f}')
 axes[1, 1].set_title(f'Bootstrap Sharpe: {best_name}')
@@ -494,7 +458,7 @@ axes[1, 1].legend()
 axes[1, 1].grid(True, alpha=0.3)
 
 # Regime profile
-colors = ['green', 'blue', 'gray', 'red']
+colors = ['green', 'blue', 'red']
 for _, row in regime_df.iterrows():
     axes[1, 2].scatter(row['vol']*100, row['mean_ret']*100, s=200, 
                        c=colors[int(row['regime'])], 
@@ -509,7 +473,7 @@ plt.tight_layout()
 plt.savefig('iter26_equity.png', dpi=150)
 plt.close()
 
-# Additional: Drawdown comparison
+# Drawdown comparison
 fig, ax = plt.subplots(figsize=(12, 6))
 for name, pos in strategies.items():
     if isinstance(pos, pd.DataFrame):
