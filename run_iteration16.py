@@ -35,7 +35,6 @@ returns = prices.pct_change().dropna()
 print("Data loaded:", len(prices), "days,", len(tickers), "tickers")
 print("Date range:", prices.index[0].date(), "to", prices.index[-1].date())
 
-# Common tickers for SPY-specific strategies
 spy = prices['SPY']
 spy_ret = spy.pct_change().dropna()
 
@@ -93,7 +92,6 @@ def transformer_factor_signal(features, rets, train_window=252, pred_horizon=21)
     n_samples, n_assets, _ = X.shape
     signals = np.zeros((n_samples, n_assets))
     
-    # Start training after we have enough data
     for i in range(train_window, n_samples - pred_horizon):
         X_train = X[i-train_window:i].reshape(-1, n_features)
         y_train = y[i-train_window:i].flatten()
@@ -183,7 +181,10 @@ def ml_factor_ensemble(factors, returns, train_window=252, pred_horizon=21):
     aligned_factors = {}
     for key in factor_names:
         df = factors[key].loc[common_idx]
-        aligned_factors[key] = df
+        # Ensure DataFrame with all columns
+        if isinstance(df, pd.Series):
+            df = df.to_frame().T if len(df) > 1 else df.to_frame()
+        aligned_factors[key] = df.reindex(columns=prices.columns)
     
     X_list = []
     for key in factor_names:
@@ -313,7 +314,7 @@ rl_weights.to_csv('/root/quant/iter16_rl_weights.csv')
 rl_returns.to_csv('/root/quant/iter16_rl_returns.csv')
 
 # ============================================================
-# E4: SENTIMENT-AUGMENTED FACTORS
+# E4: SENTIMENT-AUGMENTED FACTORS (FIXED - proper DataFrames)
 # ============================================================
 print("\n=== E4: Sentiment-Augmented Factors ===")
 
@@ -332,33 +333,26 @@ def sentiment_augmented_factors(prices, returns):
     breadth = (returns > 0).mean(axis=1)
     breadth_z = (breadth - breadth.rolling(252).mean()) / (breadth.rolling(252).std() + 1e-8)
     
+    # Create DataFrame for each asset (not Series)
     for col in prices.columns:
         asset_ret = returns[col]
         sent_beta = asset_ret.rolling(63).corr(mkt_ret)
         
-        factors[f'sent_{col}'] = (
-            -fear_index * sent_beta.fillna(0) +
-            mom_zscore * sent_beta.fillna(0) +
-            breadth_z * 0.5
-        ).rank(pct=True)
+        val = (-fear_index * sent_beta.fillna(0) +
+               mom_zscore * sent_beta.fillna(0) +
+               breadth_z * 0.5).rank(pct=True)
+        
+        factors[f'sent_{col}'] = pd.DataFrame(
+            val, index=returns.index, columns=prices.columns
+        )
     
-    return pd.DataFrame(factors, index=returns.index)
+    return factors
 
 print("Creating sentiment-augmented factors...")
 sent_factors = sentiment_augmented_factors(prices, returns)
 
-# Combine with ML ensemble - align properly
-all_factors = {}
-common_idx = returns.index
-
-for k, v in factors.items():
-    aligned = v.reindex(common_idx).ffill().bfill()
-    all_factors[k] = aligned
-
-for k, v in sent_factors.items():
-    aligned = v.reindex(common_idx).ffill().bfill()
-    all_factors[k] = aligned
-
+# Combine with ML ensemble
+all_factors = {**factors, **sent_factors}
 print("Training sentiment-augmented ML ensemble...")
 sent_ml_signal = ml_factor_ensemble(all_factors, returns)
 
