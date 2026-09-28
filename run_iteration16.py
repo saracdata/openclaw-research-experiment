@@ -177,13 +177,9 @@ def ml_factor_ensemble(factors, returns, train_window=252, pred_horizon=21):
     for key in factor_names:
         common_idx = common_idx.intersection(factors[key].index)
     
-    # Align all to common index AND columns
     aligned_factors = {}
     for key in factor_names:
         df = factors[key].loc[common_idx]
-        # Ensure DataFrame with all columns
-        if isinstance(df, pd.Series):
-            df = df.to_frame().T if len(df) > 1 else df.to_frame()
         aligned_factors[key] = df.reindex(columns=prices.columns)
     
     X_list = []
@@ -314,11 +310,12 @@ rl_weights.to_csv('/root/quant/iter16_rl_weights.csv')
 rl_returns.to_csv('/root/quant/iter16_rl_returns.csv')
 
 # ============================================================
-# E4: SENTIMENT-AUGMENTED FACTORS (FIXED - proper DataFrames)
+# E4: SENTIMENT-AUGMENTED FACTORS (FIXED - single DataFrame)
 # ============================================================
 print("\n=== E4: Sentiment-Augmented Factors ===")
 
 def sentiment_augmented_factors(prices, returns):
+    """Create sentiment proxies from market data - returns dict of DataFrames"""
     factors = {}
     
     mkt_ret = returns.mean(axis=1)
@@ -333,7 +330,9 @@ def sentiment_augmented_factors(prices, returns):
     breadth = (returns > 0).mean(axis=1)
     breadth_z = (breadth - breadth.rolling(252).mean()) / (breadth.rolling(252).std() + 1e-8)
     
-    # Create DataFrame for each asset (not Series)
+    # Create ONE DataFrame with all sentiment columns (like other factors)
+    sent_df = pd.DataFrame(index=returns.index, columns=prices.columns)
+    
     for col in prices.columns:
         asset_ret = returns[col]
         sent_beta = asset_ret.rolling(63).corr(mkt_ret)
@@ -342,9 +341,11 @@ def sentiment_augmented_factors(prices, returns):
                mom_zscore * sent_beta.fillna(0) +
                breadth_z * 0.5).rank(pct=True)
         
-        factors[f'sent_{col}'] = pd.DataFrame(
-            val, index=returns.index, columns=prices.columns
-        )
+        sent_df[col] = val
+    
+    # Split into individual factor DataFrames (to match existing structure)
+    for col in prices.columns:
+        factors[f'sent_{col}'] = sent_df[[col]].copy()
     
     return factors
 

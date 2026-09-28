@@ -1,0 +1,10 @@
+,name,AnnRet%,AnnVol%,Sharpe,MaxDD%,Calmar,days
+SMA200,SMA200,10.28,11.37,0.92,-21.55,0.48,3703
+VolTarget,VolTarget,9.42,11.29,0.85,-15.13,0.62,3703
+XSecMom,XSecMom,0.73,0.93,0.8,-2.45,0.3,3703
+GEM,GEM,2.52,3.11,0.82,-8.1,0.31,3703
+RSI2,RSI2,3.99,7.59,0.55,-18.37,0.22,3703
+Transformer_Factor,Transformer_Factor,0.0,0.0,0.0,0.0,0,3703
+ML_Factor_Ensemble,ML_Factor_Ensemble,0.0,0.0,0.0,0.0,0,3703
+RL_Portfolio_Opt,RL_Portfolio_Opt,6.07,8.03,0.77,-14.7,0.41,3703
+Sentiment_ML_Ensemble,Sentiment_ML_Ensemble,0.0,0.0,0.0,0.0,0,3703
