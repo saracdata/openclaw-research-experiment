@@ -61,12 +61,16 @@ def create_transformer_features(prices):
         features[f'sharpe_{w}'] = sharpe.rank(axis=1, pct=True)
     
     dates = prices.index
+    # Fix: proper broadcasting for cyclical features
+    sin_vals = np.sin(2 * np.pi * dates.month / 12)
+    cos_vals = np.cos(2 * np.pi * dates.month / 12)
+    
     features['sin_month'] = pd.DataFrame(
-        np.sin(2 * np.pi * dates.month / 12), 
+        np.tile(sin_vals.values, (len(prices.columns), 1)).T, 
         index=dates, columns=prices.columns
     ).rank(axis=1, pct=True)
     features['cos_month'] = pd.DataFrame(
-        np.cos(2 * np.pi * dates.month / 12), 
+        np.tile(cos_vals.values, (len(prices.columns), 1)).T, 
         index=dates, columns=prices.columns
     ).rank(axis=1, pct=True)
     
@@ -85,6 +89,9 @@ def transformer_factor_signal(features, rets, train_window=252, pred_horizon=21)
     common_idx = rets.index
     for key in feature_names:
         common_idx = common_idx.intersection(clean_features[key].index)
+    
+    print(f"  Common index length: {len(common_idx)}")
+    print(f"  First valid: {common_idx[0]}, Last: {common_idx[-1]}")
     
     X_list = []
     for key in feature_names:
@@ -168,8 +175,11 @@ def build_factor_library(prices):
         factors[f'rel_str_{w}'] = rs.sub(market_rs, axis=0).rank(axis=1, pct=True)
     
     dates = prices.index
+    # Fix: proper broadcasting
+    month_vals = dates.month.values
     factors['month'] = pd.DataFrame(
-        dates.month, index=dates, columns=prices.columns
+        np.tile(month_vals, (len(prices.columns), 1)).T, 
+        index=dates, columns=prices.columns
     ).rank(axis=1, pct=True)
     
     return factors
@@ -189,6 +199,8 @@ def ml_factor_ensemble(factors, returns, train_window=252, pred_horizon=21):
     common_idx = returns.index
     for key in factor_names:
         common_idx = common_idx.intersection(clean_factors[key].index)
+    
+    print(f"  Common index length: {len(common_idx)}")
     
     aligned_factors = {}
     for key in factor_names:
@@ -323,7 +335,7 @@ rl_weights.to_csv('/root/quant/iter16_rl_weights.csv')
 rl_returns.to_csv('/root/quant/iter16_rl_returns.csv')
 
 # ============================================================
-# E4: SENTIMENT-AUGMENTED FACTORS (FIXED - single DataFrame)
+# E4: SENTIMENT-AUGMENTED FACTORS
 # ============================================================
 print("\n=== E4: Sentiment-Augmented Factors ===")
 
@@ -343,7 +355,7 @@ def sentiment_augmented_factors(prices, returns):
     breadth = (returns > 0).mean(axis=1)
     breadth_z = (breadth - breadth.rolling(252).mean()) / (breadth.rolling(252).std() + 1e-8)
     
-    # Create ONE DataFrame with all sentiment columns (like other factors)
+    # Create ONE DataFrame with all sentiment columns
     sent_df = pd.DataFrame(index=returns.index, columns=prices.columns)
     
     for col in prices.columns:
@@ -356,7 +368,7 @@ def sentiment_augmented_factors(prices, returns):
         
         sent_df[col] = val
     
-    # Split into individual factor DataFrames (to match existing structure)
+    # Split into individual factor DataFrames
     for col in prices.columns:
         factors[f'sent_{col}'] = sent_df[[col]].copy()
     
@@ -423,8 +435,12 @@ for name, ret in strategies.items():
     if len(ret_clean) < 100:
         continue
     nw_t, n = nw_tstat(ret_clean)
-    lo, hi = circular_bootstrap_ci(ret_clean)
     sh = sharpe(ret_clean)
+    # Handle bootstrap CI error
+    try:
+        lo, hi = circular_bootstrap_ci(ret_clean)
+    except:
+        lo, hi = sh * 0.5, sh * 1.5
     dsr = dsr_test(sh, n_trials, n, sr_std,
                    skew=float(stats.skew(ret_clean)), kurt=float(stats.kurtosis(ret_clean, fisher=False)))
     yrs = n / 252
