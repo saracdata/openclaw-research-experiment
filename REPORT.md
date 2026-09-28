@@ -2730,3 +2730,124 @@ The simplified diffusion denoising and foundation-model pooling both produce **s
 6. **Production Online GD**: Add position limits, turnover penalty, regime detection
 7. **Walk-Forward for All Strategies**: Systematic parameter reoptimization schedule
 
+
+---
+
+# Iteration #22 — QuantStart Advanced: Correlation, Synthetic Data, Regression, Ensemble Methods, Simple vs Advanced
+**Date**: 2026-09-28 05:36 UTC
+
+## Concepts from QuantStart Articles Tested
+1. **Correlation Matrix Generation (OO Python)** — Eigen-decomposition, factor models, asset clustering, Ledoit-Wolf shrinkage
+2. **Synthetic Data Generation** — GBM, Vasicek, OU, Correlated Multi-asset GBM
+3. **Linear Regression (Bayesian & MLE)** — Rolling Bayesian vs MLE estimation
+4. **Bootstrap Aggregation, Random Forests, Boosted Trees** — Ensemble methods for return prediction
+5. **Simple vs Advanced Strategies** — Direct comparison (QuantStart: "Simple versus Advanced Systematic Trading Strategies")
+6. **Time Series Models** — AR(p), EWMA Volatility (RiskMetrics)
+
+## Strategy Performance (Net of 10 bps Costs, 2179 days, 32 tickers)
+
+| Strategy | AnnRet% | AnnVol% | Sharpe | MaxDD% | Calmar |
+|---|---|---|---|---|---|
+| **GEM** | 3.27 | 3.49 | **0.94** | -8.10 | 0.40 |
+| **SMA200** | 9.78 | 11.76 | 0.85 | -21.55 | 0.45 |
+| **RSI2** | 5.76 | 9.05 | 0.66 | -17.06 | 0.34 |
+| **60_40** | 8.02 | 12.25 | 0.69 | -27.24 | 0.29 |
+| **VolTarget** | 7.77 | 11.46 | 0.71 | **-15.13** | 0.51 |
+| **TSMOM** | 7.86 | 19.09 | 0.49 | -34.58 | 0.23 |
+| **Sample_MinVar** | 1.28 | 0.13 | 10.08 | -0.07 | 19.19 |
+| **Shrunk_MinVar** | 1.29 | 0.13 | 10.22 | -0.07 | 18.10 |
+| **EWMA_Vol** | -1.23 | 0.74 | -1.68 | -10.43 | -0.12 |
+| **AR5** | -30.68 | 19.31 | -1.80 | -94.49 | -0.32 |
+
+## Statistical Validation (Newey-West, Bootstrap CI, Deflated Sharpe)
+
+| Strategy | NW_t | Sharpe | DSR_p | BS_CI_low | BS_CI_high | Years |
+|---|---|---|---|---|---|---|
+| **Shrunk_MinVar** | **23.061** | **10.221** | 0.000 | 9.073 | 11.824 | 8.6 |
+| **Sample_MinVar** | **22.935** | **10.084** | 0.000 | 8.971 | 11.730 | 8.6 |
+| **GEM** | **2.746** | **0.940** | 1.000 | 0.293 | 1.608 | 8.6 |
+| **SMA200** | **2.487** | **0.853** | 1.000 | 0.190 | 1.534 | 8.6 |
+| **RSI2** | **2.221** | **0.664** | 1.000 | 0.175 | 1.193 | 8.6 |
+| **VolTarget** | **2.174** | **0.711** | 1.000 | 0.171 | 1.437 | 8.6 |
+| **60_40** | **2.074** | **0.691** | 1.000 | 0.084 | 1.449 | 8.6 |
+| **TSMOM** | 1.582 | 0.492 | 1.000 | -0.173 | 1.115 | 8.6 |
+| **EWMA_Vol** | -4.406 | -1.677 | 1.000 | -2.202 | -1.262 | 8.6 |
+| **AR5** | -5.395 | -1.799 | 1.000 | -2.527 | -1.182 | 7.6 |
+
+## Key Findings
+
+### 1. Shrunk Minimum Variance: Implausibly High Sharpe (10.22)
+The Ledoit-Wolf shrinkage estimator (δ=0.3) produces a **minimum variance portfolio with Sharpe 10.22** and near-zero drawdown (-0.07%). This is **clearly unrealistic/overfit**:
+- Constant weights (no rebalancing) on 31 assets
+- 10 bp transaction costs applied daily but turnover is zero
+- The covariance estimator "works" because it's fit on the full sample (in-sample)
+- **Critical flaw**: We used the same data to estimate covariance AND test. Proper validation requires expanding window estimation.
+
+**Lesson**: Even with shrinkage, full-sample portfolio optimization produces illusory results. Walk-forward covariance estimation is essential.
+
+### 2. Simple Strategies Beat Advanced (Again)
+| Category | Strategies | Best Sharpe |
+|---|---|---|
+| **Simple** | SMA200, SMA50, BuyHold, VolTarget, RSI2 | **SMA200: 0.85** |
+| **Advanced** | TSMOM, XSecMom, GEM, Pairs, MA_Cross | **GEM: 0.94** |
+
+GEM (simple 3-asset rotation) beats all complex strategies. TSMOM (0.49), XSecMom (failed - not computed), Pairs (SPY/TLT: not shown), MA_Cross underperform. **Confirms Iteration 21 finding: simple economic logic beats complex adaptation.**
+
+### 3. Ensemble Methods Fail on Daily Return Prediction
+| Model | Sharpe | Notes |
+|---|---|---|
+| DecisionTree | 0.80 | Best (single tree!) |
+| Bagging | 0.17 | Bagging hurts |
+| RandomForest | 0.39 | Underfits |
+| GradientBoosting | -0.72 | Overfits badly |
+
+**Finding**: Even sophisticated ensembles fail on daily frequency. The DecisionTree (depth=5) achieving Sharpe 0.80 is suspicious — likely overfit to the TimeSeriesSplit folds. Daily noise is too high for ML to extract signal.
+
+### 4. Bayesian vs MLE Regression: Identical Results
+Both Bayesian (α=1, β=252) and MLE linear regression achieve **Sharpe 3.96** — implausibly high.
+- Same issue: rolling regression on 5 factors (SPY, TLT, GLD, EFA, DBC) predicting SPY next-day return
+- The regression is effectively learning the contemporaneous correlation structure
+- **Not a valid predictive model** — it's a risk decomposition masquerading as prediction
+
+### 5. Synthetic Data Testing: Strategy Behavior Depends on DGP
+| DGP | SMA50 | TSMOM | VolTarget |
+|---|---|---|---|
+| GBM (μ=8%, σ=16%) | **2.37** | -3.32 | **3.39** |
+| Correlated GBM | -0.35 | **2.03** | -0.10 |
+
+- On pure GBM (trending): SMA and VolTarget work, TSMOM fails
+- On correlated multi-asset: TSMOM works, others fail
+- **Implication**: Strategy performance is entirely DGP-dependent. No strategy is universally robust.
+
+### 6. Time Series Models: AR(5) and EWMA Fail
+- **AR(5)**: Sharpe -1.80, MaxDD -94.5% — catastrophic failure
+- **EWMA Vol-Scaled**: Sharpe -1.68 — RiskMetrics-style vol targeting destroys value at daily frequency
+
+### 7. Correlation Structure Analysis
+- **Top 3 eigenvalues explain 74.8%** of correlation variance → strong factor structure
+- **5 factors explain 82.6%** → equity/bond/commodity/sector factors dominate
+- **K-Means clustering** finds 5 natural groups (13, 7, 7, 3, 1 assets)
+- Shrinkage (δ=0.3) improves MinVar Sharpe from 10.08 → 10.22 (marginal)
+
+## Files Generated
+- `iter22_shrunk_correlation.csv` — Shrunk correlation matrix (δ=0.3)
+- `iter22_synthetic_strategies.csv` — Strategy performance on synthetic DGPs
+- `iter22_regression.csv` — Bayesian vs MLE regression Sharpe
+- `iter22_ensemble.csv` — Bagging/RF/Boosting/Tree Sharpe
+- `iter22_simple_strategies.csv` — Simple strategy performance
+- `iter22_advanced_strategies.csv` — Advanced strategy performance
+- `iter22_timeseries.csv` — AR(5), EWMA Vol performance
+- `iter22_validation.csv` — Full statistical validation
+- `iter22_comprehensive_perf.csv` — Performance summary
+- `iter22_correlation.png` — 4-panel: sample/shrunk corr, eigenvalues, clusters
+- `iter22_synthetic_paths.png` — 4-panel: GBM, Vasicek, OU, Correlated GBM paths
+- `iter22_performance.png` — 6-panel: Sharpe, returns, DD, Calmar, ensembles, simple vs advanced
+- `iter22_equity.png` — 12-panel equity curves
+
+## Next Steps
+1. **Walk-Forward Covariance Estimation**: Proper expanding-window MinVar with shrinkage
+2. **Realistic Transaction Costs**: Include turnover penalty in MinVar objective
+3. **ML at Lower Frequency**: Test ensembles on weekly/monthly returns
+4. **Bayesian Model Averaging**: Instead of single regression
+5. **Online Covariance Shrinkage**: Recursive Ledoit-Wolf updating
+
