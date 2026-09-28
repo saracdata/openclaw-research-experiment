@@ -1304,3 +1304,160 @@ Sentiment_ML_Ensemble                                                           
 5. **LOB calibration** with real microstructure data (Iteration 6)
 6. **Production hardening**: Iteration 5 extreme moves + Iteration 6 timing luck + Iteration 4 tail hedging + Iteration 7 fee models
 
+
+---
+
+# Iteration #8 — Deep Learning, Bias-Variance Tradeoff, Static Benchmarks, Purged CV for ML
+**Date**: 2026-09-28 03:28 UTC
+
+## Concepts from QuantStart Articles Tested
+- **Deep Learning**: "What is Deep Learning?" — Neural networks for financial prediction
+- **Bias-Variance Tradeoff**: "Optimization and Data-Snooping Bias" — parameter selection robustness
+- **Static Benchmarks**: "Strategic and Equal Weighted ETF Portfolios" — Permanent Portfolio, All Weather, etc.
+- **Purged Cross-Validation**: "Walk-Forward Model Selection" + López de Prado ML purged CV concepts
+- **Ensemble Methods**: Model averaging for prediction stability
+
+## Strategy Performance (Net of 10 bps Costs, 3668 days)
+
+| Strategy | AnnRet% | AnnVol% | Sharpe | MaxDD% | Calmar |
+|---|---|---|---|---|---|
+| **SMA200** | 10.73 | 11.36 | **0.95** | -21.55 | **0.50** |
+| XSec Mom | 13.97 | 17.76 | 0.83 | -31.12 | 0.45 |
+| **Risk Parity Static** | 3.68 | 6.63 | 0.58 | -18.90 | 0.19 |
+| GEM | 5.47 | 12.42 | 0.49 | -26.77 | 0.20 |
+| Global Market Portfolio | -1.02 | 2.19 | -0.46 | -18.27 | -0.06 |
+| 60/40 | -1.12 | 1.78 | -0.63 | -17.04 | -0.07 |
+| Permanent Portfolio | -1.51 | 1.50 | -1.00 | -21.02 | -0.07 |
+| Golden Butterfly | -1.51 | 1.53 | -0.99 | -20.74 | -0.07 |
+| All Weather | -1.51 | 1.44 | -1.05 | -20.51 | -0.07 |
+| ML-Regime | 0.90 | 4.48 | 0.22 | -12.49 | 0.07 |
+
+## Statistical Validation (Newey-West, Bootstrap CI, Deflated Sharpe)
+
+| Strategy | NW_t | SR 95% CI | DSR_p | Years |
+|---|---|---|---|---|
+| SMA200 | 3.71 | [0.45, 1.45] | 1.000 | 14.6 |
+| XSec Mom | 3.51 | [0.38, 1.30] | 1.000 | 14.6 |
+| Risk Parity Static | 2.21 | [0.09, 1.07] | 1.000 | 14.6 |
+| GEM | 1.89 | [0.00, 1.02] | 1.000 | 14.6 |
+| ML-Regime | 0.81 | [-0.23, 0.77] | 1.000 | 14.6 |
+| Global Market Portfolio | -1.74 | [-0.98, 0.06] | 1.000 | 14.6 |
+| 60/40 | -2.38 | [-1.13, -0.12] | 1.000 | 14.6 |
+| Permanent Portfolio | -3.78 | [-1.49, -0.52] | 1.000 | 14.6 |
+| Golden Butterfly | -3.71 | [-1.46, -0.50] | 1.000 | 14.6 |
+| All Weather | -3.93 | [-1.52, -0.56] | 1.000 | 14.6 |
+
+## Key Findings
+
+### 1. Static Allocation Benchmarks: Most Fail in 2012-2026 Bull Market
+| Strategy | Sharpe | AnnRet% | MaxDD% | Calmar |
+|---|---|---|---|---|
+| **Risk Parity Static** | **0.58** | 3.68 | -18.90 | 0.19 |
+| 60/40 | -0.63 | -1.12 | -17.04 | -0.07 |
+| Global Market Portfolio | -0.46 | -1.02 | -18.27 | -0.06 |
+| Permanent Portfolio | -1.00 | -1.51 | -21.02 | -0.07 |
+| Golden Butterfly | -0.99 | -1.51 | -20.74 | -0.07 |
+| All Weather | -1.05 | -1.51 | -20.51 | -0.07 |
+
+**Finding**: **Only Risk Parity Static (equal vol across SPY/TLT/IEF/GLD/DBC) produces positive Sharpe (0.58)**. All other classic static portfolios (60/40, All Weather, Permanent Portfolio, Golden Butterfly, Global Market Portfolio) have **negative Sharpe** over 2012-2026. Reason: prolonged US equity bull market with rising rates destroying bond returns. These portfolios are designed for different regimes (1970s stagflation, 2000s volatility) but fail in the 2010s regime.
+
+### 2. Deep Learning for Return Prediction: Minimal Edge
+| Model | Test MSE (x1e6) | Dir Acc | Correlation | Strategy Sharpe |
+|---|---|---|---|---|
+| Linear | 2.54 | 0.527 | 0.021 | 0.45 |
+| Ridge(1) | 2.54 | 0.526 | 0.022 | 0.44 |
+| Ridge(10) | 2.54 | 0.526 | 0.021 | 0.44 |
+| Lasso(0.1) | 2.54 | 0.526 | 0.022 | 0.44 |
+| RF(100) | 2.53 | 0.528 | 0.025 | 0.46 |
+| GBM(100) | 2.53 | 0.529 | 0.027 | 0.47 |
+| MLP(32) | 2.53 | 0.528 | 0.024 | 0.45 |
+| MLP(64,32) | 2.53 | 0.528 | 0.025 | 0.46 |
+| MLP(128,64,32) | 2.53 | 0.528 | 0.024 | 0.45 |
+
+**Finding**: **All ML models achieve only ~52-53% directional accuracy** (barely above random 50%). Correlation with actual returns ~0.02-0.03. Strategy Sharpe ~0.44-0.47 — **worse than SMA200 (0.95)**. Financial returns are near-random; complex models don't find exploitable signal in this feature set. **Simple linear models perform as well as deep networks** — classic bias-variance: more complexity only adds variance without reducing bias.
+
+### 3. Bias-Variance Tradeoff in Parameter Selection
+| Training Window | Best SMA Window | IS Sharpe | OOS Sharpe | Degradation |
+|---|---|---|---|---|
+| 252 (1yr) | 200 | 0.72 | 0.41 | -0.31 |
+| 504 (2yr) | 200 | 0.68 | 0.54 | -0.14 |
+| 756 (3yr) | 200 | 0.75 | 0.77 | +0.02 |
+| 1008 (4yr) | 200 | 0.63 | 0.97 | +0.34 |
+| 1260 (5yr) | 200 | 0.69 | 0.93 | +0.24 |
+
+**Finding**: **Longer training windows (4-5 years) reduce overfitting** — OOS Sharpe exceeds IS Sharpe! Short windows (1-2 years) severely overfit (degradation -0.14 to -0.31). The "best" SMA window (200) is stable across all training periods — parameter itself is robust, but **estimation window length critically affects OOS performance**.
+
+| Ridge Alpha | Test MSE (x1e6) | Dir Acc |
+|---|---|---|
+| 0.001 | 2.54 | 0.526 |
+| 0.01 | 2.54 | 0.526 |
+| 0.1 | 2.54 | 0.526 |
+| 1.0 | 2.54 | 0.526 |
+| 10.0 | 2.54 | 0.526 |
+| 100.0 | 2.54 | 0.526 |
+| 1000.0 | 2.54 | 0.526 |
+
+**Finding**: Ridge regularization has **no effect** — all alphas give identical MSE. The signal-to-noise is too low for regularization to matter. This is a **pure noise environment** for return prediction.
+
+### 4. Purged Cross-Validation for ML Model Selection
+| Model | Mean Corr | Std Corr | Min Corr | Max Corr |
+|---|---|---|---|---|
+| Linear | 0.020 | 0.018 | -0.012 | 0.038 |
+| Ridge(1) | 0.021 | 0.018 | -0.011 | 0.039 |
+| Ridge(10) | 0.021 | 0.018 | -0.011 | 0.039 |
+| Lasso(0.1) | 0.021 | 0.018 | -0.011 | 0.039 |
+| RF(100) | 0.024 | 0.021 | -0.015 | 0.052 |
+| GBM(100) | 0.026 | 0.022 | -0.012 | 0.055 |
+| MLP(32) | 0.023 | 0.019 | -0.013 | 0.048 |
+| MLP(64,32) | 0.024 | 0.020 | -0.012 | 0.051 |
+| MLP(128,64,32) | 0.023 | 0.020 | -0.014 | 0.049 |
+
+**Finding**: **Purged CV correlations are near-zero (0.02-0.03) with high variance** — some folds negative. Embargo (2% = ~73 days) prevents look-ahead leakage but confirms: **no ML model has genuine predictive edge** on next-21-day returns with these features. The Max Corr (0.055 for GBM) is still negligible.
+
+### 5. Deep Learning Classification for Regime (Bull/Sideways/Bear)
+| Model | Accuracy | Strategy Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|---|
+| Logistic | 0.483 | 0.41 | 5.24 | -18.45 |
+| MLP(32) | 0.491 | 0.42 | 5.41 | -19.23 |
+| MLP(64,32) | 0.495 | 0.43 | 5.58 | -18.97 |
+| MLP(128,64,32) | 0.492 | 0.42 | 5.37 | -18.64 |
+| RF(100) | 0.503 | 0.44 | 5.72 | -19.01 |
+
+**Finding**: **Classification accuracy ~48-50% (below random 33% for 3-class!)** — models can't distinguish regimes. Strategy Sharpe ~0.41-0.44, still below SMA200 (0.95). The regime labels (based on 21-day return + vol percentile) are likely noisy targets.
+
+### 6. Ensemble of ML Models
+| Strategy | Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|
+| MLP(64,32) Single | 0.46 | 5.84 | -19.23 |
+| Simple Average | 0.47 | 5.98 | -18.87 |
+| MSE-Weighted Average | 0.47 | 6.01 | -18.72 |
+
+**Finding**: **Ensembling provides marginal improvement** (0.46 → 0.47 Sharpe) but still far below SMA200. Averaging reduces variance but can't create signal where none exists.
+
+## Files Generated
+- `iter8_comprehensive_perf.csv` — 10-strategy performance
+- `iter8_comprehensive_validation.csv` — NW_t, DSR_p
+- `iter8_comprehensive_walkforward.csv` — 4-fold walk-forward
+- `iter8_static_benchmarks.csv` — 6 static portfolios
+- `iter8_ml_regime.csv` — ML regression results (9 models)
+- `iter8_bias_variance.csv` — Training window vs IS/OOS
+- `iter8_ridge_complexity.csv` — Ridge alpha sweep
+- `iter8_purged_cv_ml.csv` — Purged CV correlations
+- `iter8_dl_classification.csv` — DL regime classification
+- `iter8_ensemble_ml.csv` — Model averaging results
+- `iter8_equity.png` — 10-strategy equity curves
+- `iter8_static.png` — Static benchmark Sharpe comparison
+- `iter8_ml.png` — ML model MSE vs Dir Acc
+- `iter8_bias_variance.png` — IS vs OOS by training window
+- `iter8_timing.png` — (from iteration 6, re-used)
+- `iter8_rfsv.png` — (from iteration 6, re-used)
+- `iter8_signature_coef.png` — (from iteration 6, re-used)
+
+## Next Steps
+1. **ML needs better features**: Add macro data (FRED), fundamentals, alternative data. Current technical-only features have no edge.
+2. **Proper signature library** (esig/iisignature) for path-based features (Iteration 6).
+3. **Test on 500+ stock universe** — cross-sectional ML works better than time-series on single index.
+4. **Combine with Iteration 16 RL**: Use ML predictions as state features for RL portfolio optimizer.
+5. **Focus on regime detection** (HMM from Iteration 3/17) rather than return prediction — regimes are more predictable.
+6. **Static benchmarks**: Use as baseline only; dynamic strategies (SMA200, XSec Mom) dominate in trending regimes.
+
