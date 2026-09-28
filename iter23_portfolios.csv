@@ -1,0 +1,6 @@
+,name,AnnRet%,AnnVol%,Sharpe,MaxDD%,Calmar,days
+Equal_Weight,Equal_Weight,8.26,10.26,0.82,-19.46,0.42,2178
+Risk_Parity,Risk_Parity,3.25,2.32,1.39,-4.87,0.67,2178
+Min_Var,Min_Var,1.99,3.75,0.55,-15.11,0.13,2115
+Max_Div,Max_Div,3.43,7.05,0.51,-27.81,0.12,2115
+60_40,60_40,16.12,20.65,0.83,-31.44,0.51,2178
