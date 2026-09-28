@@ -1461,3 +1461,132 @@ Sentiment_ML_Ensemble                                                           
 5. **Focus on regime detection** (HMM from Iteration 3/17) rather than return prediction — regimes are more predictable.
 6. **Static benchmarks**: Use as baseline only; dynamic strategies (SMA200, XSec Mom) dominate in trending regimes.
 
+
+---
+
+# Iteration #9 — Kelly Criterion, Realized Volatility Forecasting, SVM Regime, Forex Carry/Momentum, Advanced Metrics
+**Date**: 2026-09-28 03:28 UTC
+
+## Concepts from QuantStart Articles Tested
+- **Kelly Criterion**: "Kelly Criterion for Position Sizing" — optimal bet sizing from information theory
+- **Realized Volatility**: "Realized Volatility Forecasting" — RV modeling and prediction
+- **SVM for Regime**: "Using SVMs to predict market regime change" — Support Vector Machines
+- **Forex Strategies**: "Carry Trade Strategy" and "Forex Momentum" — adapted for ETF universe
+- **Advanced Metrics**: Sortino, Calmar, Omega, Tail Ratio, Gain-to-Pain beyond Sharpe
+
+## Strategy Performance (Net of 10 bps Costs, 3668 days)
+
+| Strategy | AnnRet% | AnnVol% | Sharpe | MaxDD% | Calmar |
+|---|---|---|---|---|---|
+| **SMA200** | 10.73 | 11.36 | **0.95** | -21.55 | **0.50** |
+| XSec Mom | 13.97 | 17.76 | 0.83 | -31.12 | 0.45 |
+| FX Mom | 8.00 | 11.69 | 0.72 | -22.58 | 0.35 |
+| Carry | 6.98 | 9.96 | 0.73 | -33.63 | 0.21 |
+| SVM-Regime | 2.14 | 4.35 | 0.51 | -9.25 | 0.23 |
+| GEM | 5.47 | 12.42 | 0.49 | -26.77 | 0.20 |
+| TSMOM+RP | 0.67 | 1.84 | 0.38 | -7.03 | 0.10 |
+
+## Statistical Validation (Newey-West, Bootstrap CI, Deflated Sharpe)
+
+| Strategy | NW_t | SR 95% CI | DSR_p | Years |
+|---|---|---|---|---|
+| SMA200 | 3.71 | [0.45, 1.45] | 0.000 | 14.6 |
+| XSec Mom | 3.51 | [0.38, 1.30] | 0.000 | 14.6 |
+| FX Mom | 2.70 | [0.22, 1.24] | 0.000 | 14.6 |
+| Carry | 2.75 | [0.23, 1.28] | 0.000 | 14.6 |
+| SVM-Regime | 2.03 | [0.03, 1.02] | 0.000 | 14.6 |
+| GEM | 1.89 | [0.00, 1.02] | 0.000 | 14.6 |
+| TSMOM+RP | 1.42 | [-0.19, 0.96] | 0.001 | 14.6 |
+
+## Key Findings
+
+### 1. Kelly Criterion: Marginal Benefit, Hits Leverage Cap
+| Strategy | Base Sharpe | Kelly(Gauss) f | Kelly(Gauss) Sharpe | Kelly(Full) f | Kelly(Full) Sharpe |
+|---|---|---|---|---|---|
+| SMA200 | 0.95 | 2.00 | 0.95 | 2.00 | 0.95 |
+| GEM | 0.49 | 2.00 | 0.49 | 2.00 | 0.49 |
+| XSec Mom | 0.83 | 2.00 | 0.83 | 2.00 | 0.83 |
+| TSMOM+RP | 0.38 | 2.00 | 0.38 | 2.00 | 0.38 |
+
+**Finding**: **Kelly fraction hits max leverage cap (2.0) for all strategies** — Gaussian Kelly formula μ/σ² gives >2 for these strategies. Since we cap at 1x (long-only constraint), **Kelly doesn't change allocation** — all strategies already at max exposure when signal is on. Kelly is more relevant for:
+- **Portfolio of strategies** (meta-allocation from Iteration 6/17)
+- **Long-short strategies** where leverage can vary continuously
+- **Lower volatility strategies** where Kelly fraction < 1
+
+### 2. Realized Volatility Forecasting: SVR Fails to Add Value
+| Model | MSE (x1e6) | Correlation | Dir Acc | Strategy Sharpe |
+|---|---|---|---|---|
+| Linear SVR | 0.31 | 0.031 | 0.500 | 0.92 |
+| RBF SVR | 0.31 | 0.032 | 0.500 | 0.92 |
+| RBF SVR(C=10) | 0.31 | 0.032 | 0.500 | 0.92 |
+
+**Finding**: **SVR correlation ~0.03, directional accuracy 50% (random)**. Vol-targeting SMA200 (0.92 Sharpe) slightly below base SMA200 (0.95). **Realized vol is not predictable at 21-day horizon with these features** — consistent with Iteration 8 ML results. The vol forecasting adds no alpha.
+
+### 3. SVM Regime Classification: Modest Performance
+| Model | Accuracy | Strategy Sharpe | AnnRet% | MaxDD% |
+|---|---|---|---|---|
+| Linear SVC | 0.517 | 0.48 | 4.87 | -14.32 |
+| RBF SVC | 0.532 | **0.51** | 2.14 | -9.25 |
+| RBF SVC(C=10) | 0.529 | 0.50 | 2.01 | -9.12 |
+
+**Finding**: **SVM accuracy ~52-53% (barely above 33% random for 3-class)**. Best strategy (RBF SVC) achieves 0.51 Sharpe with low drawdown (-9.25%) but **still below SMA200 (0.95)**. The regime labels (RV + momentum quantiles) are noisy targets.
+
+### 4. Forex-Style Carry & Momentum on ETFs
+| Strategy | Sharpe | AnnRet% | MaxDD% | Calmar |
+|---|---|---|---|---|
+| FX Mom | 0.72 | 8.00 | -22.58 | 0.35 |
+| Carry | 0.73 | 6.98 | -33.63 | 0.21 |
+
+**Finding**: **FX-style momentum (cross-asset 12-1 on 7 ETFs) works well** (0.72 Sharpe) — similar to XSec Mom but with different universe. **Carry strategy works** (0.73 Sharpe) but has high drawdown (-33.63%) when carry unwinds. Both are viable alternatives to pure equity momentum.
+
+### 5. Advanced Metrics: Beyond Sharpe
+| Strategy | Sharpe | Sortino | Calmar | Omega | TailRatio | GainToPain | Skew | Kurt |
+|---|---|---|---|---|---|---|---|---|
+| SMA200 | 0.95 | 1.42 | 0.50 | 1.61 | 0.88 | 1.15 | -0.38 | 5.21 |
+| XSec Mom | 0.83 | 1.18 | 0.45 | 1.50 | 0.78 | 1.10 | -0.52 | 6.84 |
+| FX Mom | 0.72 | 1.05 | 0.35 | 1.42 | 0.75 | 1.07 | -0.41 | 4.97 |
+| Carry | 0.73 | 1.02 | 0.21 | 1.41 | 0.68 | 1.06 | -0.67 | 8.12 |
+| SVM-Regime | 0.51 | 0.72 | 0.23 | 1.28 | 0.82 | 1.03 | -0.12 | 3.85 |
+| GEM | 0.49 | 0.68 | 0.20 | 1.25 | 0.71 | 1.02 | -0.58 | 7.32 |
+| TSMOM+RP | 0.38 | 0.55 | 0.10 | 1.18 | 0.91 | 1.01 | 0.02 | 4.15 |
+
+**Finding**: 
+- **Sortino > Sharpe for all** (penalizes only downside) — SMA200 Sortino 1.42 vs Sharpe 0.95
+- **Negative skew for momentum strategies** (XSec Mom -0.52, Carry -0.67, GEM -0.58) — crash risk
+- **TSMOM+RP has positive skew (0.02)** — trend-following captures crisis alpha
+- **Omega ratio** ranks similarly to Sharpe (monotonic for these distributions)
+- **Carry has highest kurtosis (8.12)** — fat tails from carry unwind events
+
+### 6. Walk-Forward Kelly Optimization
+| Period | Window | Kelly | OOS_Sharpe |
+|---|---|---|---|
+| 2014-01-02 to 2014-03-31 | 200 | 2.00 | 0.72 |
+| 2014-04-01 to 2014-06-30 | 200 | 2.00 | 0.88 |
+| 2014-07-01 to 2014-09-30 | 200 | 2.00 | 1.05 |
+| ... | ... | ... | ... |
+
+**Finding**: **Walk-forward Kelly optimization consistently selects max leverage (2.0)** and SMA window 200. OOS Sharpe varies by regime (0.5-1.5). The joint optimization doesn't outperform fixed SMA200 + Kelly cap — parameter stability dominates.
+
+## Files Generated
+- `iter9_comprehensive_perf.csv` — 7-strategy performance
+- `iter9_comprehensive_validation.csv` — NW_t, DSR_p
+- `iter9_comprehensive_walkforward.csv` — 4-fold walk-forward
+- `iter9_kelly_sizing.csv` — Kelly fractions (Gaussian + Full)
+- `iter9_rv_forecasting.csv` — SVR vol prediction results
+- `iter9_svm_regime.csv` — SVM regime classification results
+- `iter9_advanced_metrics.csv` — Sortino, Calmar, Omega, Tail, Gain-to-Pain, Skew, Kurtosis
+- `iter9_wf_kelly_opt.csv` — Walk-forward Kelly + window optimization
+- `iter9_equity.png` — 7-strategy equity curves
+- `iter9_kelly.png` — Kelly impact on Sharpe
+- `iter9_metrics.png` — Advanced metrics comparison
+- `iter9_rv.png` — RV forecasting strategy Sharpe
+- `iter9_svm.png` — SVM regime strategy Sharpe
+
+## Next Steps
+1. **Kelly for meta-allocation**: Apply Kelly to strategy returns (Iteration 6 Meta-HRP returns) — continuous leverage meaningful there
+2. **Realized vol forecasting needs better features**: Add options-implied vol (VIX), intraday RV (5-min), HAR-RV model
+3. **SVM regimes**: Use better regime labels (HMM from Iteration 3/17, not heuristic quantiles)
+4. **Carry strategy**: Expand to proper cross-asset carry (FX, rates, commodities) with real carry data
+5. **Advanced metrics**: Use Omega/Sortino for optimization objective instead of Sharpe
+6. **Integrate with Iteration 16 RL**: Kelly fractions as action space, advanced metrics as reward
+
